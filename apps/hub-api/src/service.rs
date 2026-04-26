@@ -1308,9 +1308,21 @@ impl HubService {
         }
 
         site.bindings = new_bindings;
+        let next_standby_node_id =
+            select_next_failover_policy_standby(&site.bindings, target_node_id);
         site.status = SiteStatus::Draft;
         site.version += 1;
         self.repo.save_site(&site).await.map_err(map_store_error)?;
+        if let Some(next_standby_node_id) = next_standby_node_id {
+            self.repo
+                .update_active_failover_policy_targets(
+                    site_id,
+                    target_node_id,
+                    next_standby_node_id,
+                )
+                .await
+                .map_err(map_store_error)?;
+        }
 
         let release = self
             .create_release(CreateReleaseRequest {
@@ -1330,6 +1342,7 @@ impl HubService {
             site_id,
             previous_primary_node_id,
             current_primary_node_id: target_node_id,
+            next_standby_node_id,
             binding_count: site.bindings.len(),
             release_id: release.release_id,
             release_version: release.release_version,
@@ -2503,6 +2516,17 @@ fn primary_site_binding(site: &SiteRecord) -> Option<&SiteBindingRecord> {
         .iter()
         .find(|binding| binding.binding_role == "primary")
         .or_else(|| site.bindings.first())
+}
+
+fn select_next_failover_policy_standby(
+    bindings: &[SiteBindingRecord],
+    primary_node_id: Uuid,
+) -> Option<Uuid> {
+    bindings
+        .iter()
+        .filter(|binding| binding.node_id != primary_node_id && binding.binding_role == "standby")
+        .min_by_key(|binding| binding.priority)
+        .map(|binding| binding.node_id)
 }
 
 fn site_binding_item(

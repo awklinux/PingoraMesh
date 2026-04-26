@@ -2185,6 +2185,125 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn switch_site_primary_accepts_target_and_reports_next_standby() {
+        let app = build_test_app().await;
+        let cookie = admin_session_cookie(&app).await;
+
+        let mut node_ids = Vec::new();
+        for node_code in [
+            "switch-target-primary",
+            "switch-target-a",
+            "switch-target-b",
+        ] {
+            let response = app
+                .clone()
+                .oneshot(cookie_json_request(
+                    "POST",
+                    "/api/admin/nodes",
+                    &cookie,
+                    json!({
+                        "node_code": node_code,
+                        "name": node_code,
+                        "region": "cn-east",
+                        "idc": "lab",
+                        "labels": { "role": "edge" }
+                    }),
+                ))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            node_ids.push(
+                response_json(response).await["data"]["node_id"]
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            );
+        }
+
+        let create_site = app
+            .clone()
+            .oneshot(cookie_json_request(
+                "POST",
+                "/api/admin/sites",
+                &cookie,
+                json!({
+                    "site_code": "switch-target-demo",
+                    "name": "switch-target-demo",
+                    "domain": "switch-target.example.com",
+                    "listen_port": 443,
+                    "protocol": "https",
+                    "tls_enabled": true,
+                    "config": { "upstreams": [] }
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(create_site.status(), StatusCode::OK);
+        let site_id = response_json(create_site).await["data"]["site_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let bind = app
+            .clone()
+            .oneshot(cookie_json_request(
+                "POST",
+                &format!("/api/admin/sites/{site_id}/bindings"),
+                &cookie,
+                json!({
+                    "bindings": [
+                        {
+                            "node_id": node_ids[0],
+                            "binding_role": "primary",
+                            "priority": 10
+                        },
+                        {
+                            "node_id": node_ids[1],
+                            "binding_role": "standby",
+                            "priority": 20
+                        },
+                        {
+                            "node_id": node_ids[2],
+                            "binding_role": "standby",
+                            "priority": 30
+                        }
+                    ]
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(bind.status(), StatusCode::OK);
+
+        let switch = app
+            .clone()
+            .oneshot(cookie_json_request(
+                "POST",
+                &format!("/api/admin/sites/{site_id}/switch-primary"),
+                &cookie,
+                json!({
+                    "target_node_id": node_ids[2],
+                    "reason": "manual failback test"
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(switch.status(), StatusCode::OK);
+        let switch_body = response_json(switch).await;
+        assert_eq!(
+            switch_body["data"]["current_primary_node_id"]
+                .as_str()
+                .unwrap(),
+            node_ids[2].as_str()
+        );
+        assert_eq!(
+            switch_body["data"]["next_standby_node_id"]
+                .as_str()
+                .unwrap(),
+            node_ids[0].as_str()
+        );
+    }
+
+    #[tokio::test]
     #[ignore = "requires local postgres/redis stack from deploy/docker-compose.local.yml"]
     async fn postgres_redis_integration_flow() {
         let postgres_url = std::env::var("PINGORAHUB_TEST_POSTGRES_URL").unwrap_or_else(|_| {

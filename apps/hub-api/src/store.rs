@@ -249,6 +249,12 @@ pub trait HubRepository: Send + Sync {
     async fn site_id_by_code(&self, site_code: &str) -> Result<Option<Uuid>, StoreError>;
     async fn list_sites(&self) -> Result<Vec<SiteRecord>, StoreError>;
     async fn delete_site(&self, site_id: Uuid) -> Result<(), StoreError>;
+    async fn update_active_failover_policy_targets(
+        &self,
+        site_id: Uuid,
+        primary_node_id: Uuid,
+        standby_node_id: Uuid,
+    ) -> Result<u64, StoreError>;
 
     async fn save_release(&self, release: &ReleaseRecord) -> Result<(), StoreError>;
     async fn release(&self, release_id: Uuid) -> Result<Option<ReleaseRecord>, StoreError>;
@@ -611,6 +617,15 @@ impl HubRepository for MemoryRepository {
             }
         }
         Ok(())
+    }
+
+    async fn update_active_failover_policy_targets(
+        &self,
+        _site_id: Uuid,
+        _primary_node_id: Uuid,
+        _standby_node_id: Uuid,
+    ) -> Result<u64, StoreError> {
+        Ok(0)
     }
 
     async fn save_release(&self, release: &ReleaseRecord) -> Result<(), StoreError> {
@@ -1517,6 +1532,32 @@ impl HubRepository for PostgresRepository {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    async fn update_active_failover_policy_targets(
+        &self,
+        site_id: Uuid,
+        primary_node_id: Uuid,
+        standby_node_id: Uuid,
+    ) -> Result<u64, StoreError> {
+        let result = sqlx::query(
+            r#"
+            UPDATE failover_policies
+            SET primary_node_id = $2,
+                standby_node_id = $3,
+                updated_at = now()
+            WHERE scope_type = 'site'
+              AND scope_id = $1
+              AND status = 'active'
+            "#,
+        )
+        .bind(site_id)
+        .bind(primary_node_id)
+        .bind(standby_node_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected())
     }
 
     async fn save_release(&self, release: &ReleaseRecord) -> Result<(), StoreError> {

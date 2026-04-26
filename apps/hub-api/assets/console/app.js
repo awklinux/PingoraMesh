@@ -1733,9 +1733,9 @@ function renderSiteActionMenuContent(site) {
         data-switch-site-primary="${escapeHtml(site.site_id)}"
         ${disabledSwitch ? "disabled" : ""}
         title="${escapeHtml(
-          disabledSwitch ? "至少需要一个备节点后才能一键切换" : "切换到当前站点已绑定的备用节点",
+          disabledSwitch ? "至少需要一个备节点后才能切换" : "选择一个已绑定节点作为新的主节点",
         )}"
-      >切换主节点</button>
+      >切换/回切主节点</button>
       ${statusAction}
     </div>
     <div class="site-action-submenu">
@@ -3069,17 +3069,92 @@ async function handleSiteActionClick(event) {
   if (switchButton) {
     closeSiteActionFloatingMenu();
     closeActionMenu(switchButton);
-    await submitAction(
-      `/api/admin/sites/${switchButton.dataset.switchSitePrimary}/switch-primary`,
+    await switchSitePrimaryWithTargetPicker(switchButton.dataset.switchSitePrimary);
+  }
+}
+
+function describeBindingTarget(binding) {
+  return [
+    binding.node_code || binding.node_id,
+    binding.node_name,
+    binding.node_status ? `状态 ${binding.node_status}` : null,
+    binding.binding_role ? `当前 ${binding.binding_role}` : null,
+    `优先级 ${binding.priority ?? "-"}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+async function switchSitePrimaryWithTargetPicker(siteId) {
+  try {
+    const detail = await apiRequest(`/api/admin/sites/${siteId}`);
+    const bindings = detail.bindings || [];
+    const currentPrimary =
+      bindings.find((binding) => binding.binding_role === "primary") || bindings[0];
+    const candidates = bindings.filter(
+      (binding) => binding.node_id && binding.node_id !== currentPrimary?.node_id,
+    );
+
+    if (candidates.length === 0) {
+      toast("当前站点没有可切换的备用节点", "error");
+      return;
+    }
+
+    let target = candidates[0];
+    if (candidates.length === 1) {
+      const confirmed = window.confirm(
+        `确认把 ${detail.domain} 的主节点切换到：\n${describeBindingTarget(target)}？`,
+      );
+      if (!confirmed) {
+        return;
+      }
+    } else {
+      const options = candidates
+        .map((binding, index) => `${index + 1}. ${describeBindingTarget(binding)}`)
+        .join("\n");
+      const answer = window.prompt(
+        `选择要切换为主节点的编号：\n${options}`,
+        "1",
+      );
+      if (answer === null) {
+        return;
+      }
+      const selectedIndex = Number.parseInt(answer, 10) - 1;
+      if (!Number.isInteger(selectedIndex) || !candidates[selectedIndex]) {
+        toast("没有找到对应的切换目标", "error");
+        return;
+      }
+      target = candidates[selectedIndex];
+    }
+
+    const response = await submitAction(
+      `/api/admin/sites/${siteId}/switch-primary`,
       "POST",
-      {},
+      {
+        target_node_id: target.node_id,
+        reason: `manual switch ${detail.site_code || detail.domain} to ${target.node_code || target.node_id}`,
+      },
       "site-status-result",
       {
-        successMessage: "主节点切换发布已创建",
         refreshAfter: true,
+        toastMessage: false,
       },
     );
+    const nextStandby = (detail.bindings || []).find(
+      (binding) => binding.node_id === response.next_standby_node_id,
+    );
+    toast(
+      nextStandby
+        ? `主节点已切换到 ${target.node_code || target.node_id}，下一备用为 ${
+            nextStandby.node_code || nextStandby.node_id
+          }`
+        : `主节点已切换到 ${target.node_code || target.node_id}`,
+      "success",
+    );
     activateView("releases", "releases-records");
+  } catch (error) {
+    setResultBox("site-status-result", { error: error.message });
+    toast(error.message || "主节点切换失败", "error");
   }
 }
 

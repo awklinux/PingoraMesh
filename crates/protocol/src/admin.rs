@@ -233,6 +233,7 @@ pub struct SwitchSitePrimaryResponse {
     pub site_id: Uuid,
     pub previous_primary_node_id: Option<Uuid>,
     pub current_primary_node_id: Uuid,
+    pub next_standby_node_id: Option<Uuid>,
     pub binding_count: usize,
     pub release_id: Uuid,
     pub release_version: String,

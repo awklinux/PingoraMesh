@@ -420,6 +420,7 @@ async fn execute_site_failover(
         policy.standby_node_id,
     );
     save_site_bindings(&mut tx, site.site_id, &switched_bindings).await?;
+    let next_policy_standby = advance_failover_policy(&mut tx, policy, &switched_bindings).await?;
 
     let certificates = load_site_certificates(&mut tx, site.site_id).await?;
     let release_nodes = switched_bindings.clone();
@@ -542,6 +543,8 @@ async fn execute_site_failover(
         "release_version": release_version,
         "bindings": switched_bindings.iter().map(binding_to_json).collect::<Vec<_>>(),
         "dns_failover": dns_failover_plan.as_ref().map(dns_failover_plan_to_json),
+        "next_policy_primary_node_id": policy.standby_node_id,
+        "next_policy_standby_node_id": next_policy_standby,
     }))
     .bind(now)
     .execute(&mut *tx)
@@ -934,6 +937,50 @@ async fn save_site_bindings(
     Ok(())
 }
 
+async fn advance_failover_policy(
+    tx: &mut Transaction<'_, Postgres>,
+    policy: &PolicySnapshot,
+    switched_bindings: &[SiteBindingSnapshot],
+) -> Result<Option<Uuid>> {
+    let next_primary_node_id = policy.standby_node_id;
+    let Some(next_standby_node_id) =
+        select_next_policy_standby(switched_bindings, next_primary_node_id)
+    else {
+        warn!(
+            policy_id = %policy.policy_id,
+            site_id = %policy.scope_id,
+            next_primary_node_id = %next_primary_node_id,
+            "failover-worker could not advance policy because no standby binding remains"
+        );
+        return Ok(None);
+    };
+
+    sqlx::query(
+        r#"
+        UPDATE failover_policies
+        SET primary_node_id = $2,
+            standby_node_id = $3,
+            updated_at = now()
+        WHERE id = $1
+        "#,
+    )
+    .bind(policy.policy_id)
+    .bind(next_primary_node_id)
+    .bind(next_standby_node_id)
+    .execute(&mut **tx)
+    .await?;
+
+    info!(
+        policy_id = %policy.policy_id,
+        site_id = %policy.scope_id,
+        primary_node_id = %next_primary_node_id,
+        standby_node_id = %next_standby_node_id,
+        "failover-worker advanced policy to next standby"
+    );
+
+    Ok(Some(next_standby_node_id))
+}
+
 fn build_switched_bindings(
     existing: &[SiteBindingSnapshot],
     primary_node_id: Uuid,
@@ -1005,6 +1052,30 @@ fn build_switched_bindings(
             .then_with(|| left.node_code.cmp(&right.node_code))
     });
     switched
+}
+
+fn select_next_policy_standby(
+    bindings: &[SiteBindingSnapshot],
+    primary_node_id: Uuid,
+) -> Option<Uuid> {
+    bindings
+        .iter()
+        .filter(|binding| binding.node_id != primary_node_id && binding.binding_role == "standby")
+        .min_by(|left, right| {
+            standby_status_rank(&left.node_status)
+                .cmp(&standby_status_rank(&right.node_status))
+                .then_with(|| left.priority.cmp(&right.priority))
+                .then_with(|| left.node_code.cmp(&right.node_code))
+        })
+        .map(|binding| binding.node_id)
+}
+
+fn standby_status_rank(status: &str) -> u8 {
+    if status.eq_ignore_ascii_case("online") {
+        0
+    } else {
+        1
+    }
 }
 
 fn current_primary_node_id(bindings: &[SiteBindingSnapshot]) -> Option<Uuid> {
@@ -1612,6 +1683,76 @@ mod tests {
                 .unwrap()
                 .binding_role,
             "standby"
+        );
+    }
+
+    #[test]
+    fn next_policy_standby_prefers_online_standby_by_priority() {
+        let new_primary_node_id = Uuid::new_v4();
+        let offline_old_primary_node_id = Uuid::new_v4();
+        let first_online_standby_node_id = Uuid::new_v4();
+        let later_online_standby_node_id = Uuid::new_v4();
+        let bindings = vec![
+            SiteBindingSnapshot {
+                node_id: new_primary_node_id,
+                node_code: "primary-b".to_string(),
+                node_status: "online".to_string(),
+                binding_role: "primary".to_string(),
+                priority: 10,
+            },
+            SiteBindingSnapshot {
+                node_id: offline_old_primary_node_id,
+                node_code: "primary-a".to_string(),
+                node_status: "offline".to_string(),
+                binding_role: "standby".to_string(),
+                priority: 20,
+            },
+            SiteBindingSnapshot {
+                node_id: later_online_standby_node_id,
+                node_code: "standby-c".to_string(),
+                node_status: "online".to_string(),
+                binding_role: "standby".to_string(),
+                priority: 40,
+            },
+            SiteBindingSnapshot {
+                node_id: first_online_standby_node_id,
+                node_code: "standby-d".to_string(),
+                node_status: "online".to_string(),
+                binding_role: "standby".to_string(),
+                priority: 30,
+            },
+        ];
+
+        assert_eq!(
+            select_next_policy_standby(&bindings, new_primary_node_id),
+            Some(first_online_standby_node_id)
+        );
+    }
+
+    #[test]
+    fn next_policy_standby_falls_back_to_offline_standby() {
+        let new_primary_node_id = Uuid::new_v4();
+        let offline_old_primary_node_id = Uuid::new_v4();
+        let bindings = vec![
+            SiteBindingSnapshot {
+                node_id: new_primary_node_id,
+                node_code: "primary-b".to_string(),
+                node_status: "online".to_string(),
+                binding_role: "primary".to_string(),
+                priority: 10,
+            },
+            SiteBindingSnapshot {
+                node_id: offline_old_primary_node_id,
+                node_code: "primary-a".to_string(),
+                node_status: "offline".to_string(),
+                binding_role: "standby".to_string(),
+                priority: 20,
+            },
+        ];
+
+        assert_eq!(
+            select_next_policy_standby(&bindings, new_primary_node_id),
+            Some(offline_old_primary_node_id)
         );
     }
 

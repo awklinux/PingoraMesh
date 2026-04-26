@@ -1,0 +1,7 @@
+/target
+/.codex-artifacts
+/.idea
+/.vscode
+.DS_Store
+/.env
+/*.log

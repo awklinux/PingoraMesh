@@ -1,0 +1,5 @@
+ALTER TABLE nodes
+ADD COLUMN IF NOT EXISTS hostname TEXT;
+
+ALTER TYPE dns_provider_type
+ADD VALUE IF NOT EXISTS 'noop';

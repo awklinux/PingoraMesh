@@ -1,0 +1,22 @@
+[Unit]
+Description=PingoraHub DNS Worker
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pingorahub
+Group=pingorahub
+EnvironmentFile=/etc/pingorahub/dns-worker.env
+ExecStart=/opt/pingorahub/bin/pingorahub-dns-worker
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/pingorahub /var/lib/pingorahub /etc/pingorahub
+WorkingDirectory=/opt/pingorahub
+
+[Install]
+WantedBy=multi-user.target

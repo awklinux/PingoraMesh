@@ -1,0 +1,16 @@
+[package]
+name = "pingorahub-status-worker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+pingorahub-application = { path = "../../crates/application" }
+pingorahub-domain = { path = "../../crates/domain" }
+sqlx.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true

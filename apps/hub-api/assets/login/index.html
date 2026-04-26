@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PingoraHub Login</title>
+    <link rel="stylesheet" href="/login/assets/styles.css" />
+  </head>
+  <body>
+    <main class="login-shell">
+      <section class="login-card" aria-label="PingoraHub 控制台登录">
+        <div class="login-story">
+          <div class="brand-block">
+            <div class="brand-mark">PH</div>
+            <div>
+              <h1>PingoraHub Console</h1>
+              <p>边缘流量与站点编排控制台</p>
+            </div>
+          </div>
+
+          <div class="hero-copy">
+            <p class="eyebrow">Access Control</p>
+            <h2>站点管理平台</h2>
+            <p>
+              登录后进入控制台，查看实时节点状态、站点发布进度、证书订单与故障切换结果。
+            </p>
+          </div>
+
+          <div class="hero-chips" aria-label="平台能力">
+            <span>节点健康检查</span>
+            <span>DNS 自动切换</span>
+            <span>证书托管</span>
+          </div>
+
+          <div class="status-grid" aria-hidden="true">
+            <div class="status-card accent-blue">
+              <span>Gateway</span>
+              <strong>Active</strong>
+            </div>
+            <div class="status-card accent-green">
+              <span>Failover</span>
+              <strong>Ready</strong>
+            </div>
+          </div>
+
+          <div class="hero-diagram" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+
+        <div class="login-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">Administrator</p>
+            <h2>控制台登录</h2>
+            <p>使用平台管理员账号继续访问管理接口。</p>
+          </div>
+
+          <form id="login-form" class="login-form">
+            <label>
+              <span>账号</span>
+              <input
+                id="username"
+                name="username"
+                autocomplete="username"
+                placeholder="admin"
+                required
+              />
+            </label>
+            <label>
+              <span>密码</span>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="请输入登录密码"
+                required
+              />
+            </label>
+            <button id="login-button" class="primary-button" type="submit">
+              登录控制台
+            </button>
+          </form>
+
+          <div id="login-error" class="error-box" hidden></div>
+          <div class="login-tip">
+            当前环境采用服务端会话鉴权，未登录时无法访问
+            <code>/api/admin/*</code> 管理接口。
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/login/assets/app.js"></script>
+  </body>
+</html>

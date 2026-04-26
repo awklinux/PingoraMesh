@@ -1,0 +1,22 @@
+[Unit]
+Description=PingoraHub Flask Test Site (8081)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pingorahub
+Group=pingorahub
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/pingorahub/test-sites/flask-8081/app.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/pingorahub /var/lib/pingorahub /opt/pingorahub/test-sites
+WorkingDirectory=/opt/pingorahub/test-sites/flask-8081
+
+[Install]
+WantedBy=multi-user.target

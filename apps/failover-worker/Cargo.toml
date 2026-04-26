@@ -1,0 +1,20 @@
+[package]
+name = "pingorahub-failover-worker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+pingorahub-application = { path = "../../crates/application" }
+pingorahub-config-compiler = { path = "../../crates/config-compiler" }
+pingorahub-dns-provider = { path = "../../crates/dns-provider" }
+pingorahub-domain = { path = "../../crates/domain" }
+pingorahub-ops-orchestrator = { path = "../../crates/ops-orchestrator" }
+serde_json.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true

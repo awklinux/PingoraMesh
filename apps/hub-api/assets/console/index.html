@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PingoraHub Console</title>
+    <link rel="stylesheet" href="/console/assets/styles.css" />
+  </head>
+  <body class="app-booting">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <div class="brand-mark">PH</div>
+          <div>
+            <h1>PingoraHub Console</h1>
+            <p>边缘流量与站点发布控制台</p>
+          </div>
+        </div>
+
+        <nav class="nav-tree">
+          <section class="nav-group active" data-group="dashboard">
+            <button
+              class="nav-parent active"
+              type="button"
+              data-icon="&#xe900;"
+              data-menu-group="dashboard"
+              data-default-subsection="dashboard-overview"
+            >
+              <span>首页</span>
+            </button>
+          </section>
+
+          <section class="nav-group" data-group="account">
+            <button
+              class="nav-parent"
+              type="button"
+              data-icon="&#xe927;"
+              data-menu-group="account"
+              data-default-subsection="account-security"
+            >
+              <span>账户安全</span>
+            </button>
+          </section>
+
+          <section class="nav-group" data-group="nodes">
+            <button
+              class="nav-parent"
+              type="button"
+              data-icon="&#xe935;"
+              data-menu-group="nodes"
+              data-default-subsection="nodes-status"
+            >
+              <span>节点状态</span>
+            </button>
+            <div class="nav-submenu" data-submenu="nodes">
+              <button
+                class="nav-child"
+                type="button"
+                data-section="nodes"
+                data-subsection="nodes-create"
+              >
+                新增节点
+              </button>
+              <button
+                class="nav-child"
+                type="button"
+                data-section="nodes"
+                data-subsection="nodes-status"
+              >
+                节点状态
+              </button>
+              <button
+                class="nav-child"
+                type="button"
+                data-section="nodes"
+                data-subsection="nodes-monitor"
+              >
+                节点监控
+              </button>
+              <button
+                class="nav-child"
+                type="button"
+                data-section="nodes"
+                data-subsection="nodes-templates"
+              >
+                动作模板
+              </button>
+              <button
+                class="nav-child"
+                type="button"
+                data-section="nodes"
+                data-subsection="nodes-operations"
+              >
+                节点动作
+              </button>
+            </div>
+          </section>
+
+          <section class="nav-group" data-group="sites">
+            <button
+              class="nav-parent"
+              type="button"
+              data-icon="&#xe936;"
+              data-menu-group="sites"
+              data-default-subsection="sites-status"
+            >
+              <span>站点列表</span>
+            </button>
+            <div class="nav-submenu" data-submenu="sites">
+              <button
+                class="nav-child"
+                type="button"
+                data-section="sites"
+                data-subsection="sites-config"
+              >
+                站点配置
+              </button>
+              <button
+                class="nav-child"
+                type="button"
+                data-section="sites"
+                data-subsection="sites-bindings"
+              >
+                节点绑定
+              </button>
+              <button
+                class="nav-child"
+                type="button"
+                data-section="sites"
+                data-subsection="sites-status"
+              >
+                站点状态
+              </button>
+            </div>
+          </section>
+
+          <section class="nav-group" data-group="releases">
+            <button
+              class="nav-parent"
+              type="button"
+              data-icon="&#xe890;"
+              data-menu-group="releases"
+              data-default-subsection="releases-records"
+            >
+              <span>发布记录</span>
+            </button>
+            <div class="nav-submenu" data-submenu="releases">
+              <button
+                class="nav-child"
+                type="button"
+                data-section="releases"
+                data-subsection="releases-config"
+              >
+                发布配置
+              </button>
+              <button
+                class="nav-child"
+                type="button"
+                data-section="releases"
+                data-subsection="releases-records"
+              >
+                发布记录
+              </button>
+            </div>
+          </section>
+
+          <section class="nav-group" data-group="dns">
+            <button
+              class="nav-parent"
+              type="button"
+              data-icon="&#xe678;"
+              data-menu-group="dns"
+              data-default-subsection="dns-providers"
+            >
+              <span>域名解析</span>
+            </button>
+            <div class="nav-submenu" data-submenu="dns">
+              <button
+                class="nav-child"
+                type="button"
+                data-section="dns"
+                data-subsection="dns-providers"
+              >
+                服务商管理
+              </button>
+              <button
+                class="nav-child"
+                type="button"
+                data-section="dns"
+                data-subsection="dns-zones"
+              >
+                区域管理
+              </button>
+            </div>
+          </section>
+
+          <section class="nav-group" data-group="certificates">
+            <button
+              class="nav-parent"
+              type="button"
+              data-icon="&#xe939;"
+              data-menu-group="certificates"
+              data-default-subsection="certificates-orders"
+            >
+              <span>证书订单</span>
+            </button>
+            <div class="nav-submenu" data-submenu="certificates">
+              <button
+                class="nav-child"
+                type="button"
+                data-section="certificates"
+                data-subsection="certificates-apply"
+              >
+                申请证书
+              </button>
+              <button
+                class="nav-child"
+                type="button"
+                data-section="certificates"
+                data-subsection="certificates-orders"
+              >
+                订单记录
+              </button>
+            </div>
+          </section>
+        </nav>
+
+        <div class="sidebar-card">
+          <p class="eyebrow">接入地址</p>
+          <code id="api-origin" class="origin-text">http://127.0.0.1:3000</code>
+          <p class="sidebar-tip">
+            当前控制台直接调用同源 API，适合内网 IP 场景快速运维。
+          </p>
+        </div>
+      </aside>
+
+      <main class="main-shell">
+        <header class="topbar">
+          <div>
+            <p id="page-group-title" class="eyebrow">Cluster Console</p>
+            <h2 id="page-title">控制台总览</h2>
+            <p id="page-description" class="page-description">
+              聚合节点、站点、发布、DNS 和证书状态，作为 PingoraHub 的标准运维入口。
+            </p>
+          </div>
+          <div class="topbar-actions">
+            <button id="logout-button" class="ghost-button" type="button">
+              退出
+            </button>
+          </div>
+        </header>
+
+        <section id="section-dashboard" class="section-panel active">
+          <div id="subsection-dashboard-overview" class="subsection-panel active">
+            <div class="hero-panel console-hero">
+              <div class="hero-icon">&#xe900;</div>
+              <div class="hero-main">
+                <div class="hero-title-row">
+                  <h3>PingoraHub 边缘站点项目</h3>
+                  <span class="status-badge status-success">运行中</span>
+                </div>
+                <div class="hero-facts">
+                  <div>
+                    <span>项目状态</span>
+                    <strong id="dashboard-project-state">自动发布中</strong>
+                  </div>
+                  <div>
+                    <span>管理入口</span>
+                    <strong>Web + API + CLI</strong>
+                  </div>
+                  <div>
+                    <span>最近发布时间</span>
+                    <strong id="last-refresh-text">尚未刷新</strong>
+                  </div>
+                  <div>
+                    <span>服务绑定</span>
+                    <strong id="meta-bind">-</strong>
+                  </div>
+                </div>
+                <div class="hero-chips">
+                  <span>自动清理发布</span>
+                  <span>DNS 自动同步</span>
+                  <span>证书托管</span>
+                  <span>节点健康检查</span>
+                </div>
+              </div>
+              <div class="hero-diagram" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div class="hero-meta sr-only">
+                <div class="hero-meta-item">
+                  <span>组件</span>
+                  <strong id="meta-components">-</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="stats-grid">
+              <article class="stat-card accent-blue">
+                <div class="stat-icon">&#xe936;</div>
+                <div>
+                  <p>站点总数</p>
+                  <h4 id="metric-site-count">0</h4>
+                  <span id="metric-site-published">已发布 0</span>
+                </div>
+              </article>
+              <article class="stat-card accent-green">
+                <div class="stat-icon">&#xe935;</div>
+                <div>
+                  <p>在线节点</p>
+                  <h4 id="metric-node-count">0</h4>
+                  <span id="metric-node-online">在线 0</span>
+                </div>
+              </article>
+              <article class="stat-card accent-amber">
+                <div class="stat-icon">&#xe890;</div>
+                <div>
+                  <p>今日发布</p>
+                  <h4 id="metric-release-count">0</h4>
+                  <span id="metric-release-pending">待处理 0</span>
+                </div>
+              </article>
+              <article class="stat-card accent-rose">
+                <div class="stat-icon">&#xe939;</div>
+                <div>
+                  <p>证书订单</p>
+                  <h4 id="metric-order-count">0</h4>
+                  <span id="metric-order-failed">失败 0</span>
+                </div>
+              </article>
+            </div>
+
+            <div class="dashboard-grid dashboard-grid-wide">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">站点总览</p>
+                    <h3>边缘入口与节点归属</h3>
+                  </div>
+                </div>
+                <div class="table-shell">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>站点名称</th>
+                        <th>域名</th>
+                        <th>状态</th>
+                        <th>主节点</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dashboard-site-rows"></tbody>
+                  </table>
+                </div>
+                <div class="trend-panel">
+                  <div>
+                    <p class="eyebrow">7 日发布趋势</p>
+                    <h3 id="dashboard-trend-title">发布活动</h3>
+                  </div>
+                  <div id="dashboard-trend" class="mini-chart"></div>
+                </div>
+              </section>
+
+              <section class="card insight-card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">运行洞察</p>
+                    <h3>关键事件</h3>
+                  </div>
+                </div>
+                <div id="dashboard-insight-list" class="insight-list"></div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-account" class="section-panel">
+          <div id="subsection-account-security" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">账户安全</p>
+              <h3>修改密码</h3>
+              <p>使用当前登录密码完成校验后，更新管理员账户密码，并自动使其他会话失效。</p>
+            </div>
+
+            <div class="section-grid two-column">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">安全设置</p>
+                    <h3>更新登录密码</h3>
+                  </div>
+                </div>
+                <form id="change-password-form" class="form-grid">
+                  <label class="full-span">
+                    <span>当前管理员</span>
+                    <input id="change-password-username" value="-" disabled />
+                  </label>
+                  <label class="full-span">
+                    <span>当前密码</span>
+                    <input name="current_password" type="password" autocomplete="current-password" required />
+                  </label>
+                  <label>
+                    <span>新密码</span>
+                    <input name="new_password" type="password" autocomplete="new-password" required minlength="6" />
+                  </label>
+                  <label>
+                    <span>确认新密码</span>
+                    <input
+                      name="confirm_password"
+                      type="password"
+                      autocomplete="new-password"
+                      required
+                      minlength="6"
+                    />
+                  </label>
+                  <p class="form-hint full-span">
+                    新密码至少 6 位。提交成功后，当前会话保留，其他已登录会话会自动失效。
+                  </p>
+                  <div class="form-actions full-span">
+                    <button class="primary-button" type="submit">更新密码</button>
+                  </div>
+                </form>
+                <pre id="change-password-result" class="result-box"></pre>
+              </section>
+
+              <section class="card info-card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">安全建议</p>
+                    <h3>账户使用建议</h3>
+                  </div>
+                </div>
+                <div class="info-list">
+                  <div class="info-item">
+                    <strong>定期轮换密码</strong>
+                    <span>建议在共享环境或多人协作场景中，按周期轮换管理员密码。</span>
+                  </div>
+                  <div class="info-item">
+                    <strong>避免重复使用</strong>
+                    <span>不要与其他平台共用同一密码，降低凭据泄露后的连带风险。</span>
+                  </div>
+                  <div class="info-item">
+                    <strong>修改后重新同步</strong>
+                    <span>如果其他浏览器标签页仍在使用旧会话，它们会在下次请求时被要求重新登录。</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-nodes" class="section-panel">
+          <div id="subsection-nodes-create" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">节点接入</p>
+              <h3>新增节点</h3>
+              <p>在节点正式安装 agent 前，先完成基础档案录入，后续注册和授权会复用这里的元信息。</p>
+            </div>
+
+            <div class="section-grid two-column">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">新建节点</p>
+                    <h3>注册前置录入</h3>
+                  </div>
+                </div>
+                <form id="node-form" class="form-grid">
+                  <label>
+                    <span>节点编码</span>
+                    <input name="node_code" placeholder="cn-sh-01" required />
+                  </label>
+                  <label>
+                    <span>节点名称</span>
+                    <input name="name" placeholder="上海入口一号" required />
+                  </label>
+                  <label>
+                    <span>Region</span>
+                    <input name="region" placeholder="cn-east" required />
+                  </label>
+                  <label>
+                    <span>IDC</span>
+                    <input name="idc" placeholder="sh-a" required />
+                  </label>
+                  <label class="full-span">
+                    <span>标签 JSON</span>
+                    <textarea
+                      name="labels"
+                      rows="6"
+                      spellcheck="false"
+                    >{"role":"edge","tier":"primary"}</textarea>
+                  </label>
+                  <div class="form-actions full-span">
+                    <button class="primary-button" type="submit">创建节点</button>
+                  </div>
+                </form>
+                <pre id="node-form-result" class="result-box"></pre>
+              </section>
+
+              <section class="card info-card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">标准流程</p>
+                    <h3>节点接入建议</h3>
+                  </div>
+                </div>
+                <div class="info-list">
+                  <div class="info-item">
+                    <strong>1. 先录入节点档案</strong>
+                    <span>统一命名、地域和角色标签，方便后续做站点分配和监控筛选。</span>
+                  </div>
+                  <div class="info-item">
+                    <strong>2. 再部署 node-agent</strong>
+                    <span>agent 接管 token 刷新、心跳、配置拉取和发布 ACK，避免人工挂单。</span>
+                  </div>
+                  <div class="info-item">
+                    <strong>3. 最后纳入站点绑定</strong>
+                    <span>上线前先确认节点心跳稳定，再进行站点绑定和版本发布。</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div id="subsection-nodes-status" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">节点可用性</p>
+              <h3>节点状态</h3>
+              <p>查看节点当前在线状态、已生效配置版本以及最后一次心跳时间。</p>
+            </div>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">节点列表</p>
+                  <h3>运行状态</h3>
+                </div>
+              </div>
+              <div class="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>编码</th>
+                      <th>名称</th>
+                      <th>区域</th>
+                      <th>状态</th>
+                      <th>版本</th>
+                      <th>最后心跳</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="node-rows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div id="subsection-nodes-detail" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">节点详情</p>
+              <h3 id="node-detail-title">未选择节点</h3>
+              <p id="node-detail-subtitle" class="page-description">
+                查看节点当前版本、站点承载和基础运行信息。
+              </p>
+            </div>
+
+            <div class="form-actions">
+              <button id="node-detail-back" class="ghost-button" type="button">返回节点列表</button>
+              <button id="node-detail-open-operations" class="secondary-button" type="button">
+                查看节点动作
+              </button>
+            </div>
+
+            <div id="node-detail-runtime" class="stats-grid compact-stats"></div>
+
+            <section class="card detail-card">
+              <div class="card-header compact-header">
+                <div>
+                  <p class="eyebrow">基础信息</p>
+                  <h3>节点概况</h3>
+                </div>
+              </div>
+              <div id="node-detail-overview" class="detail-grid"></div>
+            </section>
+
+            <section class="card detail-card">
+              <div class="card-header compact-header">
+                <div>
+                  <p class="eyebrow">承载站点</p>
+                  <h3>节点运行站点</h3>
+                </div>
+              </div>
+              <div class="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>站点</th>
+                      <th>域名</th>
+                      <th>状态</th>
+                      <th>绑定角色</th>
+                      <th>版本</th>
+                    </tr>
+                  </thead>
+                  <tbody id="node-detail-site-rows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div id="subsection-nodes-monitor" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">节点观测</p>
+              <h3>节点监控</h3>
+              <p>用心跳时间、版本分布和节点标签做轻量监控视图，快速定位滞后和异常节点。</p>
+            </div>
+
+            <div id="node-monitor-stats" class="stats-grid compact-stats"></div>
+
+            <div class="section-grid two-column">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">监控视图</p>
+                    <h3>节点心跳明细</h3>
+                  </div>
+                </div>
+                <div class="table-shell">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>节点</th>
+                        <th>宿主信息</th>
+                        <th>状态</th>
+                        <th>配置版本</th>
+                        <th>心跳延迟</th>
+                        <th>最后上报</th>
+                      </tr>
+                    </thead>
+                    <tbody id="node-monitor-rows"></tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">版本分布</p>
+                    <h3>节点版本聚合</h3>
+                  </div>
+                </div>
+                <div id="node-version-stack" class="info-list info-list-compact"></div>
+              </section>
+            </div>
+          </div>
+
+          <div id="subsection-nodes-templates" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">动作编排</p>
+              <h3>动作模板</h3>
+              <p>为 VIP 绑定、路由切换、服务重载等动作定义标准模板，主要用于人工运维和少量自定义收尾动作。</p>
+            </div>
+
+            <div class="section-grid two-column">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">模板配置</p>
+                    <h3>创建动作模板</h3>
+                  </div>
+                </div>
+                <form id="operation-template-form" class="form-grid">
+                  <input id="operation-template-id-hidden" name="template_id" type="hidden" />
+                  <label>
+                    <span>模板名称</span>
+                    <input name="name" placeholder="vip-bind" required />
+                  </label>
+                  <label>
+                    <span>动作类型</span>
+                    <select name="operation_type">
+                      <option value="vip_bind">vip_bind</option>
+                      <option value="vip_unbind">vip_unbind</option>
+                      <option value="route_switch">route_switch</option>
+                      <option value="service_reload">service_reload</option>
+                      <option value="custom_template">custom_template</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>执行用户</span>
+                    <input name="run_as_user" value="root" placeholder="root" />
+                  </label>
+                  <label>
+                    <span>超时时间（秒）</span>
+                    <input name="timeout_seconds" type="number" min="1" step="1" value="60" />
+                  </label>
+                  <label class="checkbox-field">
+                    <input name="approval_required" type="checkbox" checked />
+                    <span>需要审批后才能执行</span>
+                  </label>
+                  <label class="full-span">
+                    <span>允许参数</span>
+                    <input name="allowed_params" placeholder="vip,iface" />
+                  </label>
+                  <label class="full-span">
+                    <span>命令模板</span>
+                    <textarea
+                      name="command_template"
+                      rows="8"
+                      spellcheck="false"
+                    >ip addr add {{vip}} dev {{iface}}</textarea>
+                  </label>
+                  <div class="form-actions full-span">
+                    <button class="primary-button" type="submit">保存模板</button>
+                  </div>
+                </form>
+                <pre id="operation-template-form-result" class="result-box"></pre>
+              </section>
+
+              <section class="card info-card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">安全边界</p>
+                    <h3>模板使用建议</h3>
+                  </div>
+                </div>
+                <div class="info-list">
+                  <div class="info-item">
+                    <strong>优先使用参数白名单</strong>
+                    <span>把高风险输入收敛成少量参数，避免把任意 shell 暴露给平台操作员。</span>
+                  </div>
+                  <div class="info-item">
+	                    <strong>DNS 切换优先内置能力</strong>
+	                    <span>节点异常时的解析 IP 切换由 failover-worker 内置处理，不再建议依赖节点动作模板兜底。</span>
+                  </div>
+                  <div class="info-item">
+                    <strong>执行用户需与 agent 对齐</strong>
+                    <span>当前 `run_as_user` 只做一致性校验，不做 sudo / su 提权切换。</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">模板列表</p>
+                  <h3>标准动作模板</h3>
+                </div>
+              </div>
+              <div class="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>名称</th>
+                      <th>类型</th>
+                      <th>运行用户</th>
+                      <th>超时</th>
+                      <th>审批</th>
+                      <th>参数</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="operation-template-rows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div id="subsection-nodes-operations" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">节点动作</p>
+              <h3>节点运维任务</h3>
+	              <p>向节点派发模板化运维动作，并查看动作执行结果；节点异常时的 DNS 解析切换由监控策略自动处理。</p>
+            </div>
+
+            <div id="node-operation-stats" class="stats-grid compact-stats"></div>
+
+            <div class="section-grid two-column">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">动作下发</p>
+                    <h3>创建节点任务</h3>
+                  </div>
+                </div>
+                <form id="node-operation-form" class="form-grid">
+                  <label class="full-span">
+                    <span>目标节点</span>
+                    <select id="node-operation-node-id" name="node_id"></select>
+                  </label>
+                  <label class="full-span">
+                    <span>动作模板</span>
+                    <select id="node-operation-template-id" name="template_id"></select>
+                  </label>
+                  <label>
+                    <span>审批单号</span>
+                    <input name="approval_ticket" placeholder="OPS-20260414-001" />
+                  </label>
+                  <label class="full-span">
+                    <span>输入参数 JSON</span>
+                    <textarea
+                      name="input_params"
+                      rows="8"
+                      spellcheck="false"
+                    >{
+  "vip": "10.10.10.10/32",
+  "iface": "eth1"
+}</textarea>
+                  </label>
+                  <div class="form-actions full-span">
+                    <button class="primary-button" type="submit">派发动作</button>
+                  </div>
+                </form>
+                <pre id="node-operation-form-result" class="result-box"></pre>
+              </section>
+
+              <section class="card info-card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">当前节点</p>
+                    <h3 id="node-operation-current-title">尚未选择节点</h3>
+                  </div>
+                </div>
+                <div class="info-list">
+                  <div class="info-item">
+                    <strong>执行入口</strong>
+                    <span>节点会通过 `node-agent` 主动拉取已审批的任务，并把 `stdout/stderr` 回传到平台。</span>
+                  </div>
+                  <div class="info-item">
+	                    <strong>异常切换联动</strong>
+	                    <span>当 failover policy 开启 `dns_failover.enabled`，系统会把站点解析 IP 切到备用节点。</span>
+                  </div>
+                  <div class="info-item">
+                    <strong>结果视角</strong>
+                    <span id="node-operation-current-meta">请选择节点后查看该节点的动作统计和执行结果。</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">任务记录</p>
+                  <h3>节点动作执行历史</h3>
+                </div>
+              </div>
+              <div class="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>创建时间</th>
+                      <th>模板</th>
+                      <th>状态</th>
+                      <th>发起人</th>
+                      <th>输出摘要</th>
+                    </tr>
+                  </thead>
+                  <tbody id="node-operation-rows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="section-sites" class="section-panel">
+          <div id="subsection-sites-config" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">站点建模</p>
+              <h3>站点配置</h3>
+              <p>统一维护域名、协议、监听端口和上游配置，站点更新会自动推进配置版本。</p>
+            </div>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">站点配置</p>
+                  <h3 id="site-form-title">创建站点</h3>
+                </div>
+                <button id="site-form-reset" class="ghost-button" type="button">
+                  重置表单
+                </button>
+              </div>
+              <form id="site-form" class="form-grid">
+                <input id="site-id" name="site_id" type="hidden" />
+                <label>
+                  <span>站点名称</span>
+                  <input name="name" placeholder="官网入口" required />
+                </label>
+                <label>
+                  <span>域名</span>
+                  <input name="domain" placeholder="portal.example.com" required />
+                </label>
+                <label>
+                  <span>监听端口</span>
+                  <input
+                    name="listen_port"
+                    type="number"
+                    min="1"
+                    max="65535"
+                    value="443"
+                    required
+                  />
+                </label>
+                <label>
+                  <span>协议</span>
+                  <select name="protocol">
+                    <option value="https">HTTPS</option>
+                    <option value="http">HTTP</option>
+                    <option value="tcp">TCP</option>
+                  </select>
+                </label>
+                <label class="checkbox-field">
+                  <input name="tls_enabled" type="checkbox" checked />
+                  <span>启用 TLS</span>
+                </label>
+                <div class="full-span form-block">
+                  <div class="card-header compact-header">
+                    <div>
+                      <p class="eyebrow">上游服务</p>
+                      <h3>Upstreams 配置</h3>
+                    </div>
+                  </div>
+                  <div class="upstream-composer">
+                    <label>
+                      <span>新增 Upstream</span>
+                      <input id="upstream-new-name" placeholder="flask-test-8081" />
+                    </label>
+                    <button id="add-upstream-group" class="ghost-button" type="button">
+                      添加 Upstream
+                    </button>
+                  </div>
+                  <div id="upstream-groups" class="upstream-groups"></div>
+                  <p class="form-hint">
+                    新增项在上方一行完成，已添加的 Upstream 会展示在下方，方便继续调整权重、启停和 backup 属性。
+                  </p>
+                </div>
+                <div class="full-span form-block">
+                  <div class="card-header compact-header">
+                    <div>
+                      <p class="eyebrow">缓存策略</p>
+                      <h3>静态资源缓存</h3>
+                    </div>
+                  </div>
+                  <div class="form-grid nested-form-grid">
+                    <label class="checkbox-field">
+                      <input name="image_cache_enabled" type="checkbox" checked />
+                      <span>启用图片缓存策略</span>
+                    </label>
+                    <label>
+                      <span>图片扩展名</span>
+                      <input
+                        name="image_cache_extensions"
+                        placeholder="jpg,jpeg,png,gif,webp,svg,ico,avif"
+                      />
+                    </label>
+                    <label>
+                      <span>图片缓存秒数</span>
+                      <input
+                        name="image_cache_ttl"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value="2592000"
+                      />
+                    </label>
+                    <label class="full-span">
+                      <span>图片 Cache-Control</span>
+                      <input
+                        name="image_cache_control"
+                        placeholder="public, max-age=2592000, immutable"
+                      />
+                    </label>
+                    <label class="checkbox-field">
+                      <input name="asset_cache_enabled" type="checkbox" checked />
+                      <span>启用 CSS/JS 缓存策略</span>
+                    </label>
+                    <label>
+                      <span>CSS/JS 扩展名</span>
+                      <input name="asset_cache_extensions" placeholder="css,js,mjs,map" />
+                    </label>
+                    <label>
+                      <span>CSS/JS 缓存秒数</span>
+                      <input
+                        name="asset_cache_ttl"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value="604800"
+                      />
+                    </label>
+                    <label class="full-span">
+                      <span>CSS/JS Cache-Control</span>
+                      <input
+                        name="asset_cache_control"
+                        placeholder="public, max-age=604800, immutable"
+                      />
+                    </label>
+                    <p class="form-hint full-span">
+                      扩展名使用英文逗号分隔，缓存秒数填 `0` 表示不生成该类缓存规则。
+                    </p>
+                  </div>
+                </div>
+                <label class="full-span">
+                  <span>站点配置 JSON</span>
+                  <textarea
+                    name="config"
+                    rows="16"
+                    spellcheck="false"
+                  >{
+  "upstreams": [
+    {
+      "name": "flask-test-8081",
+      "endpoints": [
+        {
+          "active": true,
+          "address": "10.20.3.53:8081",
+          "weight": 100
+        }
+      ]
+    }
+  ],
+  "cache_rules": [
+    {
+      "name": "images",
+      "match_extensions": ["jpg", "jpeg", "png", "gif", "webp", "svg", "ico", "avif"],
+      "expires_seconds": 2592000,
+      "cache_control": "public, max-age=2592000, immutable"
+    },
+    {
+      "name": "css-js",
+      "match_extensions": ["css", "js", "mjs", "map"],
+      "expires_seconds": 604800,
+      "cache_control": "public, max-age=604800, immutable"
+    }
+  ]
+}</textarea>
+                </label>
+                <div class="form-actions full-span">
+                  <button id="site-submit-button" class="primary-button" type="submit">
+                    创建站点
+                  </button>
+                </div>
+              </form>
+              <pre id="site-form-result" class="result-box"></pre>
+            </section>
+          </div>
+
+          <div id="subsection-sites-bindings" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">流量拓扑</p>
+              <h3>节点绑定</h3>
+              <p>为站点配置主备、金丝雀和优先级，后续发布会按这里的绑定目标下发。</p>
+            </div>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">节点绑定</p>
+                  <h3>主备拓扑</h3>
+                </div>
+              </div>
+              <form id="binding-form" class="form-grid">
+                <label class="full-span">
+                  <span>目标站点</span>
+                  <select id="binding-site-id" name="site_id"></select>
+                </label>
+                <div class="full-span">
+                  <div class="binding-header">
+                    <span>节点明细</span>
+                    <button id="add-binding-row" class="ghost-button" type="button">
+                      添加绑定
+                    </button>
+                  </div>
+                  <div id="binding-rows" class="binding-rows"></div>
+                </div>
+                <div class="form-actions full-span">
+                  <button class="primary-button" type="submit">保存绑定</button>
+                </div>
+              </form>
+              <pre id="binding-form-result" class="result-box"></pre>
+            </section>
+          </div>
+
+          <div id="subsection-sites-status" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">站点清单</p>
+              <h3>站点列表</h3>
+              <p>查看站点状态、配置版本和绑定数量，并可快速进行详情、编辑、启用、禁用和删除等操作。</p>
+            </div>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">站点列表</p>
+                  <h3>站点总览</h3>
+                </div>
+              </div>
+              <div class="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>名称</th>
+                      <th>域名</th>
+                      <th>协议</th>
+                      <th>状态</th>
+                      <th>版本</th>
+                      <th>主节点 / 绑定数</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="site-rows"></tbody>
+                </table>
+              </div>
+              <pre id="site-status-result" class="result-box"></pre>
+            </section>
+          </div>
+
+          <div id="subsection-sites-detail" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">站点详情</p>
+              <h3 id="site-detail-title">未选择站点</h3>
+              <p id="site-detail-subtitle" class="page-description">
+                查看站点域名、协议、缓存与绑定信息。
+              </p>
+            </div>
+
+            <div class="form-actions">
+              <button id="site-detail-back" class="ghost-button" type="button">返回站点列表</button>
+              <button id="site-detail-open-edit" class="secondary-button" type="button">
+                编辑站点
+              </button>
+            </div>
+
+            <div id="site-detail-runtime" class="stats-grid compact-stats"></div>
+
+            <section class="card detail-card">
+              <div class="card-header compact-header">
+                <div>
+                  <p class="eyebrow">基础信息</p>
+                  <h3>站点概况</h3>
+                </div>
+              </div>
+              <div id="site-detail-overview" class="detail-grid"></div>
+            </section>
+
+            <section class="card detail-card">
+              <div class="card-header compact-header">
+                <div>
+                  <p class="eyebrow">节点绑定</p>
+                  <h3>绑定拓扑</h3>
+                </div>
+              </div>
+              <div class="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>节点</th>
+                      <th>角色</th>
+                      <th>优先级</th>
+                    </tr>
+                  </thead>
+                  <tbody id="site-detail-binding-rows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="section-releases" class="section-panel">
+          <div id="subsection-releases-config" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">发布编排</p>
+              <h3>发布配置</h3>
+              <p>选择目标站点和发布类型，生成新的配置发布任务并交由节点自动拉取。</p>
+            </div>
+
+            <div class="section-grid two-column">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">创建发布</p>
+                    <h3>站点版本下发</h3>
+                  </div>
+                </div>
+                <form id="release-form" class="form-grid">
+                  <label class="full-span">
+                    <span>目标站点</span>
+                    <select id="release-site-id" name="scope_id"></select>
+                  </label>
+                  <label>
+                    <span>发布类型</span>
+                    <select name="release_type">
+                      <option value="manual">manual</option>
+                      <option value="full">full</option>
+                      <option value="rollback">rollback</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>说明</span>
+                    <input name="reason" placeholder="发布官网 HTTPS 配置" required />
+                  </label>
+                  <div class="form-actions full-span">
+                    <button class="primary-button" type="submit">创建发布</button>
+                  </div>
+                </form>
+                <pre id="release-form-result" class="result-box"></pre>
+              </section>
+
+              <section class="card info-card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">发布建议</p>
+                    <h3>下发前检查</h3>
+                  </div>
+                </div>
+                <div class="info-list">
+                  <div class="info-item">
+                    <strong>确认节点已在线</strong>
+                    <span>目标节点需要正常心跳，否则发布会停留在待处理状态。</span>
+                  </div>
+                  <div class="info-item">
+                    <strong>先完成站点绑定</strong>
+                    <span>发布只会下发给当前绑定内的节点，建议先把主备关系确认清楚。</span>
+                  </div>
+                  <div class="info-item">
+                    <strong>关注失败统计</strong>
+                    <span>下发完成后切到发布记录，重点看失败节点和 ACK 聚合状态。</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div id="subsection-releases-records" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">发布追踪</p>
+              <h3>发布记录</h3>
+              <p>查看每次配置发布的聚合状态、目标范围和结果统计，快速定位挂单和失败发布。</p>
+            </div>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">发布列表</p>
+                  <h3>状态聚合</h3>
+                </div>
+              </div>
+              <div class="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>版本</th>
+                      <th>状态</th>
+                      <th>范围</th>
+                      <th>统计</th>
+                      <th>说明</th>
+                      <th>创建时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="release-rows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div id="subsection-releases-detail" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">发布详情</p>
+              <h3 id="release-detail-title">未选择发布</h3>
+              <p id="release-detail-subtitle" class="page-description">
+                查看发布范围、聚合状态和统计信息。
+              </p>
+            </div>
+            <div class="form-actions">
+              <button id="release-detail-back" class="ghost-button" type="button">返回发布记录</button>
+            </div>
+            <div id="release-detail-runtime" class="stats-grid compact-stats"></div>
+            <section class="card detail-card">
+              <div class="card-header compact-header">
+                <div>
+                  <p class="eyebrow">基础信息</p>
+                  <h3>发布概况</h3>
+                </div>
+              </div>
+              <div id="release-detail-overview" class="detail-grid"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="section-dns" class="section-panel">
+          <div id="subsection-dns-providers" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">DNS 接入</p>
+              <h3>Provider 管理</h3>
+              <p>维护 DNS 服务商账号和访问凭据，后续 Zone 同步和证书申请会使用这里的 Provider。</p>
+            </div>
+
+            <div class="section-grid two-column">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">DNS Provider</p>
+                    <h3>接入供应商</h3>
+                  </div>
+                </div>
+                <form id="dns-provider-form" class="form-grid">
+                  <input id="dns-provider-id-hidden" name="provider_id" type="hidden" />
+                  <label>
+                    <span>名称</span>
+                    <input name="name" placeholder="cloudflare-prod" required />
+                  </label>
+                  <label>
+                    <span>类型</span>
+                    <select name="provider_type">
+                      <option value="cloudflare">cloudflare</option>
+                      <option value="noop">noop</option>
+                      <option value="custom">custom</option>
+                      <option value="alidns">alidns</option>
+                      <option value="route53">route53</option>
+                      <option value="dnspod">dnspod</option>
+                    </select>
+                  </label>
+                  <label class="full-span">
+                    <span>API Endpoint</span>
+                    <input name="api_endpoint" placeholder="可选，默认使用 Provider 内置地址" />
+                  </label>
+                  <label class="full-span">
+                    <span>凭据 JSON</span>
+                    <textarea
+                      name="credentials"
+                      rows="8"
+                      spellcheck="false"
+                    >{"api_token":"replace-with-token"}</textarea>
+                  </label>
+                  <div class="form-actions full-span">
+                    <button class="primary-button" type="submit">保存 Provider</button>
+                  </div>
+                </form>
+                <pre id="dns-provider-form-result" class="result-box"></pre>
+              </section>
+
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">Provider 列表</p>
+                    <h3>已接入账户</h3>
+                  </div>
+                </div>
+                <div class="table-shell">
+                  <table>
+                    <thead>
+                    <tr>
+                      <th>名称</th>
+                      <th>类型</th>
+                      <th>状态</th>
+                      <th>创建时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dns-provider-rows"></tbody>
+                </table>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div id="subsection-dns-zones" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">DNS 域同步</p>
+              <h3>Zone 管理</h3>
+              <p>将托管域同步到平台，作为证书签发和 DNS 变更的可选目标。</p>
+            </div>
+
+            <div class="section-grid two-column">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">同步 Zone</p>
+                    <h3>拉取托管域</h3>
+                  </div>
+                </div>
+                <form id="dns-zone-sync-form" class="form-grid">
+                  <label class="full-span">
+                    <span>Provider</span>
+                    <select id="dns-provider-id" name="provider_id"></select>
+                  </label>
+                  <label class="full-span">
+                    <span>Zone 名称</span>
+                    <textarea
+                      name="zone_names"
+                      rows="6"
+                      spellcheck="false"
+                      placeholder="example.com&#10;example.net"
+                    ></textarea>
+                  </label>
+                  <div class="form-actions full-span">
+                    <button class="primary-button" type="submit">同步 Zone</button>
+                  </div>
+                </form>
+                <pre id="dns-zone-sync-result" class="result-box"></pre>
+              </section>
+
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="eyebrow">Zone 列表</p>
+                    <h3>可签发域</h3>
+                  </div>
+                </div>
+                <div class="table-shell">
+                  <table>
+                    <thead>
+                    <tr>
+                      <th>Zone</th>
+                      <th>Provider</th>
+                      <th>状态</th>
+                      <th>创建时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dns-zone-rows"></tbody>
+                </table>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div id="subsection-dns-provider-detail" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">Provider 详情</p>
+              <h3 id="dns-provider-detail-title">未选择 Provider</h3>
+              <p id="dns-provider-detail-subtitle" class="page-description">
+                查看 Provider 类型、状态和接入配置摘要。
+              </p>
+            </div>
+            <div class="form-actions">
+              <button id="dns-provider-detail-back" class="ghost-button" type="button">返回 Provider 列表</button>
+              <button id="dns-provider-detail-open-edit" class="secondary-button" type="button">
+                编辑 Provider
+              </button>
+              <button id="dns-provider-detail-delete" class="ghost-button danger" type="button">
+                删除 Provider
+              </button>
+            </div>
+            <div id="dns-provider-detail-overview" class="detail-grid"></div>
+          </div>
+
+          <div id="subsection-dns-zone-detail" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">Zone 详情</p>
+              <h3 id="dns-zone-detail-title">未选择 Zone</h3>
+              <p id="dns-zone-detail-subtitle" class="page-description">
+                查看 Zone 状态、Provider 归属和创建时间。
+              </p>
+            </div>
+            <div class="form-actions">
+              <button id="dns-zone-detail-back" class="ghost-button" type="button">返回 Zone 列表</button>
+              <button id="dns-zone-detail-toggle" class="secondary-button" type="button">
+                切换状态
+              </button>
+              <button id="dns-zone-detail-delete" class="ghost-button danger" type="button">
+                删除 Zone
+              </button>
+            </div>
+            <div id="dns-zone-detail-overview" class="detail-grid"></div>
+          </div>
+        </section>
+
+        <section id="section-certificates" class="section-panel">
+          <div id="subsection-certificates-apply" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">证书签发</p>
+              <h3>申请证书</h3>
+              <p>以 DNS-01 方式发起 ACME 证书订单，支持独立证书、泛域名证书和到期前自动续签。</p>
+            </div>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">申请证书</p>
+                  <h3>DNS-01 下单</h3>
+                  <p>证书签发成功后会默认纳入自动续签；已被站点使用的证书续签后会自动回绑原站点。</p>
+                </div>
+              </div>
+              <form id="certificate-order-form" class="form-grid">
+                <label class="full-span">
+                  <span>关联站点（可选）</span>
+                  <select id="certificate-site-id" name="site_id"></select>
+                </label>
+                <label class="full-span">
+                  <span>证书域名</span>
+                  <input
+                    name="domain"
+                    type="text"
+                    placeholder="example.com 或 *.example.com"
+                    autocomplete="off"
+                  />
+                  <small>选择站点时可留空，将使用站点域名；不选站点时必填，支持泛域名证书。</small>
+                </label>
+                <label class="full-span">
+                  <span>解析区域</span>
+                  <select id="certificate-zone-id" name="zone_id"></select>
+                </label>
+                <label>
+                  <span>ACME 服务</span>
+                  <select name="acme_provider">
+                    <option value="mock">mock</option>
+                    <option value="letsencrypt-staging">letsencrypt-staging</option>
+                    <option value="letsencrypt-production">letsencrypt-production</option>
+                    <option value="custom">custom</option>
+                  </select>
+                </label>
+                <label>
+                  <span>验证方式</span>
+                  <select name="challenge_type">
+                    <option value="dns-01">dns-01</option>
+                  </select>
+                </label>
+                <div class="form-actions full-span">
+                  <button class="primary-button" type="submit">创建证书订单</button>
+                </div>
+              </form>
+              <pre id="certificate-order-result" class="result-box"></pre>
+            </section>
+          </div>
+
+          <div id="subsection-certificates-orders" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">证书追踪</p>
+              <h3>订单记录</h3>
+              <p>查看证书订单状态，支持对失败单进行重试或人工重置。</p>
+            </div>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">证书订单</p>
+                  <h3>重试与重置</h3>
+                </div>
+              </div>
+              <div class="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>站点</th>
+                      <th>状态</th>
+                      <th>ACME 服务</th>
+                      <th>错误</th>
+                      <th>创建时间</th>
+                      <th>下次续签时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="certificate-order-rows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div id="subsection-certificates-detail" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">订单详情</p>
+              <h3 id="certificate-detail-title">未选择订单</h3>
+              <p id="certificate-detail-subtitle" class="page-description">
+                查看证书订单状态、ACME 参数和错误信息。
+              </p>
+            </div>
+            <div class="form-actions">
+              <button id="certificate-detail-back" class="ghost-button" type="button">返回订单列表</button>
+              <button id="certificate-detail-retry" class="secondary-button" type="button">
+                重试订单
+              </button>
+              <button id="certificate-detail-reset" class="ghost-button danger" type="button">
+                重置订单
+              </button>
+            </div>
+            <div id="certificate-detail-overview" class="detail-grid"></div>
+          </div>
+        </section>
+
+          <div id="subsection-node-template-detail" class="subsection-panel">
+            <div class="subsection-lead">
+              <p class="eyebrow">模板详情</p>
+              <h3 id="operation-template-detail-title">未选择模板</h3>
+              <p id="operation-template-detail-subtitle" class="page-description">
+                查看动作模板的类型、运行用户、参数白名单和执行规则。
+              </p>
+            </div>
+            <div class="form-actions">
+              <button id="operation-template-detail-back" class="ghost-button" type="button">返回动作模板</button>
+              <button id="operation-template-detail-open-edit" class="secondary-button" type="button">
+                编辑模板
+              </button>
+              <button id="operation-template-detail-delete" class="ghost-button danger" type="button">
+                删除模板
+              </button>
+            </div>
+            <div id="operation-template-detail-overview" class="detail-grid"></div>
+          </div>
+        
+      </main>
+    </div>
+
+    <div id="toast-stack" class="toast-stack"></div>
+    <script src="/console/assets/app.js"></script>
+  </body>
+</html>

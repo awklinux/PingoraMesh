@@ -26,9 +26,26 @@ pub struct UpstreamEndpoint {
     pub backup: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpstreamBalanceMethod {
+    RoundRobin,
+    WeightedRoundRobin,
+    LeastConnections,
+    IpHash,
+}
+
+impl Default for UpstreamBalanceMethod {
+    fn default() -> Self {
+        Self::RoundRobin
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Upstream {
     pub name: String,
+    #[serde(default)]
+    pub balance_method: UpstreamBalanceMethod,
     pub endpoints: Vec<UpstreamEndpoint>,
 }
 

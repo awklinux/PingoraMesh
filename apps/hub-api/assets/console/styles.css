@@ -894,7 +894,7 @@ body.app-booting .app-shell {
 
 .upstream-group-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(180px, 0.8fr) auto;
   gap: 12px;
   align-items: end;
 }
@@ -908,9 +908,29 @@ body.app-booting .app-shell {
 
 .upstream-endpoint-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.8fr) 140px 120px 120px 92px;
+  grid-template-columns: minmax(0, 1.8fr) 120px 110px 110px 86px 92px;
   gap: 10px;
   align-items: end;
+}
+
+.endpoint-sort-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  min-height: 44px;
+  align-items: stretch;
+}
+
+.endpoint-sort-actions .tiny-button {
+  min-width: 0;
+  padding-inline: 8px;
+}
+
+.endpoint-sort-actions .tiny-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+  transform: none;
+  box-shadow: none;
 }
 
 .toggle-field {

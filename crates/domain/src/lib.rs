@@ -6,4 +6,6 @@ pub mod site;
 pub use certificate::CertificateRef;
 pub use node::{NodeIdentity, NodeRuntimeState, NodeStatus};
 pub use release::{ReleaseManifest, ReleaseTarget};
-pub use site::{CacheRule, Protocol, SiteSpec, SiteStatus, Upstream, UpstreamEndpoint};
+pub use site::{
+    CacheRule, Protocol, SiteSpec, SiteStatus, Upstream, UpstreamBalanceMethod, UpstreamEndpoint,
+};

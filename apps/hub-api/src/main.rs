@@ -1181,6 +1181,7 @@ mod tests {
                         "upstreams": [
                             {
                                 "name": "portal-origin",
+                                "balance_method": "least_connections",
                                 "endpoints": [
                                     {"address": "10.0.2.10:8443", "weight": 80, "active": true},
                                     {"address": "10.0.2.11:8443", "weight": 20, "active": true}
@@ -1273,6 +1274,24 @@ mod tests {
                 .as_str()
                 .unwrap(),
             "css-js"
+        );
+        assert_eq!(
+            package_body["data"]["rendered_config"]["upstreams"][0]["balance_method"]
+                .as_str()
+                .unwrap(),
+            "least_connections"
+        );
+        assert_eq!(
+            package_body["data"]["rendered_config"]["upstreams"][0]["endpoints"][0]["address"]
+                .as_str()
+                .unwrap(),
+            "10.0.2.10:8443"
+        );
+        assert_eq!(
+            package_body["data"]["rendered_config"]["upstreams"][0]["endpoints"][1]["address"]
+                .as_str()
+                .unwrap(),
+            "10.0.2.11:8443"
         );
         assert_eq!(
             package_body["data"]["manifest"]["sites"][0]["cache_rules"][0]["expires_seconds"]

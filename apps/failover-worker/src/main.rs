@@ -5,7 +5,7 @@ use pingorahub_config_compiler::compile_site_bundle;
 use pingorahub_dns_provider::{DnsRecordChange, ProviderConfig, build_provider};
 use pingorahub_domain::{
     CacheRule, CertificateRef, Protocol as SiteProtocol, ReleaseTarget, SiteSpec, SiteStatus,
-    Upstream, UpstreamEndpoint,
+    Upstream, UpstreamBalanceMethod, UpstreamEndpoint,
 };
 use serde_json::{Map, Value, json};
 use sqlx::{PgPool, Postgres, Row, Transaction, postgres::PgPoolOptions};
@@ -1355,6 +1355,7 @@ fn parse_upstreams(config: &Value) -> Vec<Upstream> {
                 .iter()
                 .filter_map(|upstream| {
                     let name = upstream.get("name")?.as_str()?.to_string();
+                    let balance_method = parse_upstream_balance_method(upstream);
                     let endpoints = upstream
                         .get("endpoints")
                         .and_then(Value::as_array)
@@ -1375,11 +1376,38 @@ fn parse_upstreams(config: &Value) -> Vec<Upstream> {
                         })
                         .unwrap_or_default();
 
-                    Some(Upstream { name, endpoints })
+                    Some(Upstream {
+                        name,
+                        balance_method,
+                        endpoints,
+                    })
                 })
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()
+}
+
+fn parse_upstream_balance_method(upstream: &Value) -> UpstreamBalanceMethod {
+    upstream
+        .get("balance_method")
+        .or_else(|| upstream.get("distribution_method"))
+        .or_else(|| upstream.get("method"))
+        .and_then(Value::as_str)
+        .map(normalize_upstream_balance_method)
+        .unwrap_or_default()
+}
+
+fn normalize_upstream_balance_method(raw: &str) -> UpstreamBalanceMethod {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "weighted_round_robin" | "weighted" | "weight" | "wrr" => {
+            UpstreamBalanceMethod::WeightedRoundRobin
+        }
+        "least_connections" | "least_conn" | "least-connections" | "least-conn" => {
+            UpstreamBalanceMethod::LeastConnections
+        }
+        "ip_hash" | "ip-hash" | "hash" => UpstreamBalanceMethod::IpHash,
+        _ => UpstreamBalanceMethod::RoundRobin,
+    }
 }
 
 fn parse_cache_rules(config: &Value) -> Vec<CacheRule> {

@@ -44,6 +44,7 @@ const MANAGED_CACHE_RULES = Object.freeze([
 
 const DEFAULT_UPSTREAM_TEMPLATE = Object.freeze({
   name: "",
+  balance_method: "round_robin",
   endpoints: [
     {
       address: "",
@@ -53,6 +54,25 @@ const DEFAULT_UPSTREAM_TEMPLATE = Object.freeze({
     },
   ],
 });
+
+const UPSTREAM_BALANCE_METHODS = Object.freeze([
+  {
+    value: "round_robin",
+    label: "轮询",
+  },
+  {
+    value: "weighted_round_robin",
+    label: "权重轮询",
+  },
+  {
+    value: "least_connections",
+    label: "最少连接",
+  },
+  {
+    value: "ip_hash",
+    label: "IP Hash",
+  },
+]);
 
 const navigationConfig = {
   dashboard: {
@@ -3238,6 +3258,9 @@ function collectManagedUpstreams(form) {
   return [...form.querySelectorAll(".upstream-group")]
     .map((group) => {
       const name = group.querySelector('[data-upstream-field="name"]').value.trim();
+      const balanceMethod = normalizeUpstreamBalanceMethod(
+        group.querySelector('[data-upstream-field="balance_method"]')?.value,
+      );
       const endpoints = [...group.querySelectorAll(".upstream-endpoint-row")]
         .map((row) => ({
           address: row.querySelector('[data-endpoint-field="address"]').value.trim(),
@@ -3257,7 +3280,7 @@ function collectManagedUpstreams(form) {
         return null;
       }
 
-      return { name, endpoints };
+      return { name, balance_method: balanceMethod, endpoints };
     })
     .filter(Boolean);
 }
@@ -3273,6 +3296,9 @@ function applyManagedUpstreamsToForm(form, config) {
   for (const upstream of upstreams) {
     addUpstreamGroup({
       name: upstream?.name || DEFAULT_UPSTREAM_TEMPLATE.name,
+      balance_method: normalizeUpstreamBalanceMethod(
+        upstream?.balance_method || upstream?.distribution_method || upstream?.method,
+      ),
       endpoints: normalizeEndpointList(upstream?.endpoints),
     });
   }
@@ -3294,6 +3320,14 @@ function addUpstreamGroup(initial = DEFAULT_UPSTREAM_TEMPLATE) {
         <span>Upstream 名称</span>
         <input data-upstream-field="name" placeholder="origin-service" />
       </label>
+      <label>
+        <span>分配方式</span>
+        <select data-upstream-field="balance_method">
+          ${UPSTREAM_BALANCE_METHODS.map(
+            (method) => `<option value="${escapeHtml(method.value)}">${escapeHtml(method.label)}</option>`,
+          ).join("")}
+        </select>
+      </label>
       <div class="stack-actions">
         <button class="ghost-button" type="button" data-add-endpoint>添加地址</button>
         <button class="ghost-button" type="button" data-remove-upstream>移除 Upstream</button>
@@ -3303,6 +3337,8 @@ function addUpstreamGroup(initial = DEFAULT_UPSTREAM_TEMPLATE) {
   `;
   $("upstream-groups").appendChild(group);
   group.querySelector('[data-upstream-field="name"]').value = initial.name || "";
+  group.querySelector('[data-upstream-field="balance_method"]').value =
+    normalizeUpstreamBalanceMethod(initial.balance_method);
   if (composer) {
     composer.value = "";
   }
@@ -3334,6 +3370,10 @@ function addUpstreamEndpointRow(group, initial = {}) {
       <input data-endpoint-field="backup" type="checkbox" />
       <span>Backup</span>
     </label>
+    <div class="endpoint-sort-actions" aria-label="节点排序">
+      <button class="tiny-button" type="button" data-move-endpoint="up" title="上移">↑</button>
+      <button class="tiny-button" type="button" data-move-endpoint="down" title="下移">↓</button>
+    </div>
     <button class="ghost-button endpoint-remove-button" type="button" data-remove-endpoint>
       移除
     </button>
@@ -3343,9 +3383,25 @@ function addUpstreamEndpointRow(group, initial = {}) {
   row.querySelector('[data-endpoint-field="weight"]').value = initial.weight ?? 100;
   row.querySelector('[data-endpoint-field="active"]').checked = initial.active !== false;
   row.querySelector('[data-endpoint-field="backup"]').checked = initial.backup === true;
+  syncEndpointSortButtons(group);
 }
 
 function handleUpstreamGroupClick(event) {
+  const moveEndpointButton = event.target.closest("[data-move-endpoint]");
+  if (moveEndpointButton) {
+    const row = moveEndpointButton.closest(".upstream-endpoint-row");
+    const direction = moveEndpointButton.dataset.moveEndpoint;
+    if (direction === "up" && row?.previousElementSibling) {
+      row.parentElement.insertBefore(row, row.previousElementSibling);
+    }
+    if (direction === "down" && row?.nextElementSibling) {
+      row.parentElement.insertBefore(row.nextElementSibling, row);
+    }
+    syncEndpointSortButtons(row?.closest(".upstream-group"));
+    syncSiteConfigPreview();
+    return;
+  }
+
   const addEndpointButton = event.target.closest("[data-add-endpoint]");
   if (addEndpointButton) {
     addUpstreamEndpointRow(addEndpointButton.closest(".upstream-group"));
@@ -3361,6 +3417,7 @@ function handleUpstreamGroupClick(event) {
       return;
     }
     removeEndpointButton.closest(".upstream-endpoint-row")?.remove();
+    syncEndpointSortButtons(group);
     syncSiteConfigPreview();
     return;
   }
@@ -3373,6 +3430,23 @@ function handleUpstreamGroupClick(event) {
     }
     syncSiteConfigPreview();
   }
+}
+
+function syncEndpointSortButtons(group) {
+  if (!group) {
+    return;
+  }
+  const rows = [...group.querySelectorAll(".upstream-endpoint-row")];
+  rows.forEach((row, index) => {
+    const upButton = row.querySelector('[data-move-endpoint="up"]');
+    const downButton = row.querySelector('[data-move-endpoint="down"]');
+    if (upButton) {
+      upButton.disabled = index === 0;
+    }
+    if (downButton) {
+      downButton.disabled = index === rows.length - 1;
+    }
+  });
 }
 
 function normalizeEndpointList(endpoints) {
@@ -3392,6 +3466,24 @@ function normalizeEndpointList(endpoints) {
       };
     })
     .filter((endpoint) => endpoint && endpoint.address);
+}
+
+function normalizeUpstreamBalanceMethod(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  const aliases = {
+    weighted: "weighted_round_robin",
+    weight: "weighted_round_robin",
+    wrr: "weighted_round_robin",
+    least_conn: "least_connections",
+    "least-conn": "least_connections",
+    "least-connections": "least_connections",
+    hash: "ip_hash",
+    "ip-hash": "ip_hash",
+  };
+  const resolved = aliases[normalized] || normalized;
+  return UPSTREAM_BALANCE_METHODS.some((method) => method.value === resolved)
+    ? resolved
+    : DEFAULT_UPSTREAM_TEMPLATE.balance_method;
 }
 
 function buildManagedCacheRule(form, ruleConfig) {

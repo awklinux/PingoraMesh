@@ -43,10 +43,10 @@ const MANAGED_CACHE_RULES = Object.freeze([
 ]);
 
 const DEFAULT_UPSTREAM_TEMPLATE = Object.freeze({
-  name: "flask-test-8081",
+  name: "",
   endpoints: [
     {
-      address: "10.20.3.53:8081",
+      address: "",
       weight: 100,
       active: true,
       backup: false,
@@ -67,13 +67,13 @@ const navigationConfig = {
     },
   },
   account: {
-    label: "账户",
-    eyebrow: "Account Security",
+    label: "全局设置",
+    eyebrow: "Global Settings",
     defaultSubsection: "account-security",
     subsections: {
       "account-security": {
-        label: "修改密码",
-        description: "验证当前密码后更新管理员登录密码，并让其他已登录会话自动失效。",
+        label: "全局设置",
+        description: "管理平台级安全配置，当前支持更新管理员登录密码并清理其他会话。",
       },
     },
   },
@@ -1780,6 +1780,51 @@ function renderBindingNodeCell(binding) {
   `;
 }
 
+function renderSiteRowActions(site) {
+  const disabledSwitch = Number(site.binding_count || 0) < 2;
+  const statusAction =
+    site.status === "disabled"
+      ? `<button class="action-chip" type="button" data-enable-site="${escapeHtml(
+          site.site_id,
+        )}">启用</button>`
+      : `<button class="action-chip" type="button" data-disable-site="${escapeHtml(
+          site.site_id,
+        )}">禁用</button>`;
+
+  return `
+    <div class="site-row-actions">
+      <button class="action-chip primary" type="button" data-open-site-detail="${escapeHtml(
+        site.site_id,
+      )}">详情</button>
+      <button class="action-chip" type="button" data-edit-site="${escapeHtml(
+        site.site_id,
+      )}">编辑</button>
+      <button class="action-chip" type="button" data-edit-site-bindings="${escapeHtml(
+        site.site_id,
+      )}">绑定</button>
+      <button class="action-chip" type="button" data-renew-site-certificate="${escapeHtml(
+        site.site_id,
+      )}">证书</button>
+      <button
+        class="action-chip"
+        type="button"
+        data-switch-site-primary="${escapeHtml(site.site_id)}"
+        ${disabledSwitch ? "disabled" : ""}
+        title="${escapeHtml(
+          disabledSwitch ? "至少需要一个备节点后才能一键切换" : "切换到当前站点已绑定的备用节点",
+        )}"
+      >切主</button>
+      ${statusAction}
+      <button
+        class="action-chip danger"
+        type="button"
+        data-delete-site="${escapeHtml(site.site_id)}"
+        data-site-name="${escapeHtml(site.name || site.site_code)}"
+      >删除</button>
+    </div>
+  `;
+}
+
 function renderSitesTable() {
   const rows = state.sites
     .map(
@@ -1795,88 +1840,7 @@ function renderSitesTable() {
             <div class="muted">${escapeHtml(String(site.binding_count))} 个绑定</div>
           </td>
           <td>
-            <details class="action-menu">
-              <summary>
-                <button class="tiny-button menu-button" type="button">操作</button>
-              </summary>
-              <div class="action-menu-sheet">
-                <button
-                  class="action-menu-item"
-                  type="button"
-                  data-open-site-detail="${escapeHtml(site.site_id)}"
-                >
-                  查看详情
-                </button>
-                <button
-                  class="action-menu-item"
-                  type="button"
-                  data-edit-site="${escapeHtml(site.site_id)}"
-                >
-                  编辑站点
-                </button>
-                <button
-                  class="action-menu-item"
-                  type="button"
-                  data-edit-site-config="${escapeHtml(site.site_id)}"
-                >
-                  编辑配置
-                </button>
-                <button
-                  class="action-menu-item"
-                  type="button"
-                  data-edit-site-bindings="${escapeHtml(site.site_id)}"
-                >
-                  节点绑定
-                </button>
-                <button
-                  class="action-menu-item"
-                  type="button"
-                  data-renew-site-certificate="${escapeHtml(site.site_id)}"
-                >
-                  续签证书
-                </button>
-                <button
-                  class="action-menu-item"
-                  type="button"
-                  data-switch-site-primary="${escapeHtml(site.site_id)}"
-                  ${site.binding_count < 2 ? "disabled" : ""}
-                  title="${escapeHtml(
-                    site.binding_count < 2
-                      ? "至少需要一个备节点后才能一键切换"
-                      : "切换到当前站点已绑定的备用节点",
-                  )}"
-                >
-                  ${site.binding_count < 2 ? "切换主节点（需备节点）" : "切换主节点"}
-                </button>
-                ${
-                  site.status === "disabled"
-                    ? `
-                <button
-                  class="action-menu-item"
-                  type="button"
-                  data-enable-site="${escapeHtml(site.site_id)}"
-                >
-                  启用站点
-                </button>`
-                    : `
-                <button
-                  class="action-menu-item"
-                  type="button"
-                  data-disable-site="${escapeHtml(site.site_id)}"
-                >
-                  禁用站点
-                </button>`
-                }
-                <button
-                  class="action-menu-item danger"
-                  type="button"
-                  data-delete-site="${escapeHtml(site.site_id)}"
-                  data-site-name="${escapeHtml(site.name || site.site_code)}"
-                >
-                  删除站点
-                </button>
-              </div>
-            </details>
+            ${renderSiteRowActions(site)}
           </td>
         </tr>
       `,
@@ -3192,7 +3156,7 @@ function applyManagedUpstreamsToForm(form, config) {
 
 function applyManagedUpstreamDefaults(form) {
   applyManagedUpstreamsToForm(form, {
-    upstreams: [DEFAULT_UPSTREAM_TEMPLATE],
+    upstreams: [],
   });
 }
 
@@ -3204,7 +3168,7 @@ function addUpstreamGroup(initial = DEFAULT_UPSTREAM_TEMPLATE) {
     <div class="upstream-group-header">
       <label>
         <span>Upstream 名称</span>
-        <input data-upstream-field="name" placeholder="flask-test-8081" />
+        <input data-upstream-field="name" placeholder="origin-service" />
       </label>
       <div class="stack-actions">
         <button class="ghost-button" type="button" data-add-endpoint>添加地址</button>
@@ -3232,7 +3196,7 @@ function addUpstreamEndpointRow(group, initial = {}) {
   row.innerHTML = `
     <label>
       <span>地址</span>
-      <input data-endpoint-field="address" placeholder="10.20.3.53:8081" />
+      <input data-endpoint-field="address" placeholder="源站地址，如 10.0.0.10:8080" />
     </label>
     <label>
       <span>权重</span>
@@ -3356,16 +3320,7 @@ function applyManagedCacheDefaults(form) {
 
 function defaultSiteConfigObject() {
   return {
-    upstreams: [
-      {
-        name: DEFAULT_UPSTREAM_TEMPLATE.name,
-        endpoints: DEFAULT_UPSTREAM_TEMPLATE.endpoints.map((endpoint) => ({
-          address: endpoint.address,
-          weight: endpoint.weight,
-          active: endpoint.active,
-        })),
-      },
-    ],
+    upstreams: [],
     cache_rules: MANAGED_CACHE_RULES.map((rule) => ({
       name: rule.ruleName,
       match_extensions: normalizeExtensionList(rule.defaultExtensions),

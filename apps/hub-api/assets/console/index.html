@@ -30,18 +30,6 @@
             </button>
           </section>
 
-          <section class="nav-group" data-group="account">
-            <button
-              class="nav-parent"
-              type="button"
-              data-icon="&#xe927;"
-              data-menu-group="account"
-              data-default-subsection="account-security"
-            >
-              <span>账户安全</span>
-            </button>
-          </section>
-
           <section class="nav-group" data-group="nodes">
             <button
               class="nav-parent"
@@ -223,6 +211,18 @@
               </button>
             </div>
           </section>
+
+          <section class="nav-group nav-group-bottom" data-group="account">
+            <button
+              class="nav-parent"
+              type="button"
+              data-icon="&#xe927;"
+              data-menu-group="account"
+              data-default-subsection="account-security"
+            >
+              <span>全局设置</span>
+            </button>
+          </section>
         </nav>
 
         <div class="sidebar-card">
@@ -379,7 +379,7 @@
         <section id="section-account" class="section-panel">
           <div id="subsection-account-security" class="subsection-panel">
             <div class="subsection-lead">
-              <p class="eyebrow">账户安全</p>
+              <p class="eyebrow">全局设置</p>
               <h3>修改密码</h3>
               <p>使用当前登录密码完成校验后，更新管理员账户密码，并自动使其他会话失效。</p>
             </div>
@@ -925,7 +925,7 @@
                   <div class="upstream-composer">
                     <label>
                       <span>新增 Upstream</span>
-                      <input id="upstream-new-name" placeholder="flask-test-8081" />
+                      <input id="upstream-new-name" placeholder="origin-service" />
                     </label>
                     <button id="add-upstream-group" class="ghost-button" type="button">
                       添加 Upstream
@@ -1009,18 +1009,7 @@
                     rows="16"
                     spellcheck="false"
                   >{
-  "upstreams": [
-    {
-      "name": "flask-test-8081",
-      "endpoints": [
-        {
-          "active": true,
-          "address": "10.20.3.53:8081",
-          "weight": 100
-        }
-      ]
-    }
-  ],
+  "upstreams": [],
   "cache_rules": [
     {
       "name": "images",

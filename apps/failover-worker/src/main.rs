@@ -213,7 +213,7 @@ async fn load_active_policies(pool: &PgPool) -> Result<Vec<PolicySnapshot>> {
             sn.node_code AS standby_node_code,
             pn.status::text AS primary_status,
             sn.status::text AS standby_status,
-            sn.public_ip::text AS standby_public_ip,
+            host(sn.public_ip) AS standby_public_ip,
             pn.last_seen_at AS primary_last_seen_at,
             phb.active_config_version AS primary_active_config_version,
             shb.active_config_version AS standby_active_config_version

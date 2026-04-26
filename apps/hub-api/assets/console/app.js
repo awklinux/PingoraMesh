@@ -218,6 +218,8 @@ document.addEventListener("DOMContentLoaded", () => {
     window.setInterval(() => {
       refreshAll({ silent: true, preserveStatus: true });
     }, 15000);
+    document.addEventListener("scroll", closeSiteActionFloatingMenu, true);
+    window.addEventListener("resize", closeSiteActionFloatingMenu);
   } catch (error) {
     console.error("failed to initialize PingoraHub console", error);
     safeToast(error.message || "控制台初始化失败，请刷新后重试", "error");
@@ -526,6 +528,17 @@ function bindDetailPages() {
 }
 
 function handleDocumentClick(event) {
+  const siteActionMenu = $("site-action-floating-menu");
+  const clickedSiteActionTrigger = event.target.closest("[data-open-site-action-menu]");
+  if (
+    siteActionMenu &&
+    !siteActionMenu.hidden &&
+    !siteActionMenu.contains(event.target) &&
+    !clickedSiteActionTrigger
+  ) {
+    closeSiteActionFloatingMenu();
+  }
+
   for (const menu of document.querySelectorAll(".action-menu[open]")) {
     if (!menu.contains(event.target)) {
       menu.open = false;
@@ -617,130 +630,8 @@ function bindTableActions() {
     });
   });
 
-  $("site-rows").addEventListener("click", async (event) => {
-    const detailButton = event.target.closest("[data-open-site-detail]");
-    if (detailButton) {
-      closeActionMenu(detailButton);
-      await openSiteDetailDrawer(detailButton.dataset.openSiteDetail);
-      return;
-    }
-
-    const editButton = event.target.closest("[data-edit-site]");
-    if (editButton) {
-      closeActionMenu(editButton);
-      await loadSiteIntoForm(editButton.dataset.editSite, {
-        subsection: "sites-config",
-      });
-      return;
-    }
-
-    const configButton = event.target.closest("[data-edit-site-config]");
-    if (configButton) {
-      closeActionMenu(configButton);
-      await loadSiteIntoForm(configButton.dataset.editSiteConfig, {
-        subsection: "sites-config",
-      });
-      return;
-    }
-
-    const bindingButton = event.target.closest("[data-edit-site-bindings]");
-    if (bindingButton) {
-      closeActionMenu(bindingButton);
-      await loadSiteIntoForm(bindingButton.dataset.editSiteBindings, {
-        subsection: "sites-bindings",
-        toastMessage: false,
-      });
-      toast("站点绑定已加载", "success");
-      return;
-    }
-
-    const enableButton = event.target.closest("[data-enable-site]");
-    if (enableButton) {
-      closeActionMenu(enableButton);
-      await submitAction(
-        `/api/admin/sites/${enableButton.dataset.enableSite}/enable`,
-        "POST",
-        null,
-        "site-status-result",
-        {
-          successMessage: "站点已启用",
-          refreshAfter: true,
-        },
-      );
-      return;
-    }
-
-    const disableButton = event.target.closest("[data-disable-site]");
-    if (disableButton) {
-      closeActionMenu(disableButton);
-      await submitAction(
-        `/api/admin/sites/${disableButton.dataset.disableSite}/disable`,
-        "POST",
-        null,
-        "site-status-result",
-        {
-          successMessage: "站点已禁用",
-          refreshAfter: true,
-        },
-      );
-      return;
-    }
-
-    const deleteButton = event.target.closest("[data-delete-site]");
-    if (deleteButton) {
-      closeActionMenu(deleteButton);
-      const siteId = deleteButton.dataset.deleteSite;
-      const siteName = deleteButton.dataset.siteName || siteId;
-      if (!window.confirm(`确认删除站点 ${siteName} 吗？已绑定节点会收到清理发布。`)) {
-        return;
-      }
-      await submitAction(
-        `/api/admin/sites/${siteId}`,
-        "DELETE",
-        null,
-        "site-status-result",
-        {
-          successMessage: `站点 ${siteName} 已删除`,
-          refreshAfter: true,
-        },
-      );
-      closeSiteDetailDrawer();
-      return;
-    }
-
-    const renewButton = event.target.closest("[data-renew-site-certificate]");
-    if (renewButton) {
-      closeActionMenu(renewButton);
-      await submitAction(
-        `/api/admin/sites/${renewButton.dataset.renewSiteCertificate}/renew-certificate`,
-        "POST",
-        null,
-        "site-status-result",
-        {
-          successMessage: "续签订单已创建",
-          refreshAfter: true,
-        },
-      );
-      activateView("certificates", "certificates-orders");
-      return;
-    }
-
-    const switchButton = event.target.closest("[data-switch-site-primary]");
-    if (switchButton) {
-      closeActionMenu(switchButton);
-      await submitAction(
-        `/api/admin/sites/${switchButton.dataset.switchSitePrimary}/switch-primary`,
-        "POST",
-        {},
-        "site-status-result",
-        {
-          successMessage: "主节点切换发布已创建",
-          refreshAfter: true,
-        },
-      );
-      activateView("releases", "releases-records");
-    }
-  });
+  $("site-rows").addEventListener("click", handleSiteActionClick);
+  ensureSiteActionMenuLayer().addEventListener("click", handleSiteActionClick);
 
   $("dashboard-site-rows").addEventListener("click", async (event) => {
     const detailButton = event.target.closest("[data-open-site-detail]");
@@ -1780,52 +1671,81 @@ function renderBindingNodeCell(binding) {
   `;
 }
 
-function renderSiteRowActions(site) {
+function renderSiteActionMenuContent(site) {
   const disabledSwitch = Number(site.binding_count || 0) < 2;
   const statusAction =
     site.status === "disabled"
-      ? `<button class="action-chip" type="button" data-enable-site="${escapeHtml(
+      ? `<button class="action-menu-item" type="button" data-enable-site="${escapeHtml(
           site.site_id,
         )}">启用</button>`
-      : `<button class="action-chip" type="button" data-disable-site="${escapeHtml(
+      : `<button class="action-menu-item" type="button" data-disable-site="${escapeHtml(
           site.site_id,
         )}">禁用</button>`;
 
   return `
-    <div class="site-row-actions">
-      <button class="action-chip primary" type="button" data-open-site-detail="${escapeHtml(
+    <div class="site-action-menu-head">
+      <strong>${escapeHtml(site.name || site.site_code)}</strong>
+      <span>${escapeHtml(site.domain || "-")}</span>
+    </div>
+    <div class="site-action-submenu">
+      <p class="site-action-submenu-title">查看</p>
+      <button class="action-menu-item" type="button" data-open-site-detail="${escapeHtml(
         site.site_id,
-      )}">详情</button>
-      <button class="action-chip" type="button" data-edit-site="${escapeHtml(
+      )}">站点详情</button>
+    </div>
+    <div class="site-action-submenu">
+      <p class="site-action-submenu-title">配置</p>
+      <button class="action-menu-item" type="button" data-edit-site="${escapeHtml(
         site.site_id,
-      )}">编辑</button>
-      <button class="action-chip" type="button" data-edit-site-bindings="${escapeHtml(
+      )}">编辑站点</button>
+      <button class="action-menu-item" type="button" data-edit-site-bindings="${escapeHtml(
         site.site_id,
-      )}">绑定</button>
-      <button class="action-chip" type="button" data-renew-site-certificate="${escapeHtml(
+      )}">节点绑定</button>
+      <button class="action-menu-item" type="button" data-renew-site-certificate="${escapeHtml(
         site.site_id,
-      )}">证书</button>
+      )}">证书续签</button>
+    </div>
+    <div class="site-action-submenu">
+      <p class="site-action-submenu-title">发布</p>
       <button
-        class="action-chip"
+        class="action-menu-item"
         type="button"
         data-switch-site-primary="${escapeHtml(site.site_id)}"
         ${disabledSwitch ? "disabled" : ""}
         title="${escapeHtml(
           disabledSwitch ? "至少需要一个备节点后才能一键切换" : "切换到当前站点已绑定的备用节点",
         )}"
-      >切主</button>
+      >切换主节点</button>
       ${statusAction}
+    </div>
+    <div class="site-action-submenu">
+      <p class="site-action-submenu-title">危险操作</p>
       <button
-        class="action-chip danger"
+        class="action-menu-item danger"
         type="button"
         data-delete-site="${escapeHtml(site.site_id)}"
         data-site-name="${escapeHtml(site.name || site.site_code)}"
-      >删除</button>
+      >删除站点</button>
     </div>
   `;
 }
 
+function renderSiteRowActions(site) {
+  return `
+    <button
+      class="tiny-button menu-button site-action-trigger"
+      type="button"
+      data-open-site-action-menu="${escapeHtml(site.site_id)}"
+      aria-haspopup="menu"
+      aria-expanded="false"
+    >
+      操作
+    </button>
+  `;
+}
+
 function renderSitesTable() {
+  closeSiteActionFloatingMenu();
   const rows = state.sites
     .map(
       (site) => `
@@ -2936,6 +2856,210 @@ function closeActionMenu(element) {
   const menu = element?.closest(".action-menu");
   if (menu) {
     menu.open = false;
+  }
+}
+
+function ensureSiteActionMenuLayer() {
+  let layer = $("site-action-floating-menu");
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.id = "site-action-floating-menu";
+    layer.className = "site-action-floating-menu";
+    layer.hidden = true;
+    layer.setAttribute("role", "menu");
+    document.body.appendChild(layer);
+  }
+  return layer;
+}
+
+function closeSiteActionFloatingMenu() {
+  const layer = $("site-action-floating-menu");
+  if (!layer || layer.hidden) {
+    return;
+  }
+  layer.hidden = true;
+  layer.innerHTML = "";
+  delete layer.dataset.siteId;
+  for (const trigger of document.querySelectorAll("[data-open-site-action-menu][aria-expanded='true']")) {
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.classList.remove("is-open");
+  }
+}
+
+function toggleSiteActionMenu(trigger) {
+  const siteId = trigger.dataset.openSiteActionMenu;
+  const layer = ensureSiteActionMenuLayer();
+  if (!layer.hidden && layer.dataset.siteId === siteId) {
+    closeSiteActionFloatingMenu();
+    return;
+  }
+
+  const site = state.sites.find((item) => item.site_id === siteId);
+  if (!site) {
+    safeToast("站点数据已刷新，请稍后重试", "error");
+    return;
+  }
+
+  closeSiteActionFloatingMenu();
+  layer.innerHTML = renderSiteActionMenuContent(site);
+  layer.dataset.siteId = siteId;
+  layer.hidden = false;
+  trigger.setAttribute("aria-expanded", "true");
+  trigger.classList.add("is-open");
+  positionSiteActionMenu(trigger, layer);
+}
+
+function positionSiteActionMenu(trigger, layer) {
+  const gap = 8;
+  const margin = 12;
+  const triggerRect = trigger.getBoundingClientRect();
+  const menuRect = layer.getBoundingClientRect();
+  const maxLeft = window.innerWidth - menuRect.width - margin;
+  const belowTop = triggerRect.bottom + gap;
+  const aboveTop = triggerRect.top - menuRect.height - gap;
+
+  let top = belowTop;
+  if (belowTop + menuRect.height > window.innerHeight - margin && aboveTop >= margin) {
+    top = aboveTop;
+  }
+
+  const left = Math.max(margin, Math.min(triggerRect.right - menuRect.width, maxLeft));
+  layer.style.top = `${Math.round(Math.max(margin, top))}px`;
+  layer.style.left = `${Math.round(left)}px`;
+}
+
+async function handleSiteActionClick(event) {
+  const menuTrigger = event.target.closest("[data-open-site-action-menu]");
+  if (menuTrigger) {
+    event.preventDefault();
+    toggleSiteActionMenu(menuTrigger);
+    return;
+  }
+
+  const detailButton = event.target.closest("[data-open-site-detail]");
+  if (detailButton) {
+    closeSiteActionFloatingMenu();
+    closeActionMenu(detailButton);
+    await openSiteDetailDrawer(detailButton.dataset.openSiteDetail);
+    return;
+  }
+
+  const editButton = event.target.closest("[data-edit-site]");
+  if (editButton) {
+    closeSiteActionFloatingMenu();
+    closeActionMenu(editButton);
+    await loadSiteIntoForm(editButton.dataset.editSite, {
+      subsection: "sites-config",
+    });
+    return;
+  }
+
+  const configButton = event.target.closest("[data-edit-site-config]");
+  if (configButton) {
+    closeSiteActionFloatingMenu();
+    closeActionMenu(configButton);
+    await loadSiteIntoForm(configButton.dataset.editSiteConfig, {
+      subsection: "sites-config",
+    });
+    return;
+  }
+
+  const bindingButton = event.target.closest("[data-edit-site-bindings]");
+  if (bindingButton) {
+    closeSiteActionFloatingMenu();
+    closeActionMenu(bindingButton);
+    await loadSiteIntoForm(bindingButton.dataset.editSiteBindings, {
+      subsection: "sites-bindings",
+      toastMessage: false,
+    });
+    toast("站点绑定已加载", "success");
+    return;
+  }
+
+  const enableButton = event.target.closest("[data-enable-site]");
+  if (enableButton) {
+    closeSiteActionFloatingMenu();
+    closeActionMenu(enableButton);
+    await submitAction(
+      `/api/admin/sites/${enableButton.dataset.enableSite}/enable`,
+      "POST",
+      null,
+      "site-status-result",
+      {
+        successMessage: "站点已启用",
+        refreshAfter: true,
+      },
+    );
+    return;
+  }
+
+  const disableButton = event.target.closest("[data-disable-site]");
+  if (disableButton) {
+    closeSiteActionFloatingMenu();
+    closeActionMenu(disableButton);
+    await submitAction(
+      `/api/admin/sites/${disableButton.dataset.disableSite}/disable`,
+      "POST",
+      null,
+      "site-status-result",
+      {
+        successMessage: "站点已禁用",
+        refreshAfter: true,
+      },
+    );
+    return;
+  }
+
+  const deleteButton = event.target.closest("[data-delete-site]");
+  if (deleteButton) {
+    closeSiteActionFloatingMenu();
+    closeActionMenu(deleteButton);
+    const siteId = deleteButton.dataset.deleteSite;
+    const siteName = deleteButton.dataset.siteName || siteId;
+    if (!window.confirm(`确认删除站点 ${siteName} 吗？已绑定节点会收到清理发布。`)) {
+      return;
+    }
+    await submitAction(`/api/admin/sites/${siteId}`, "DELETE", null, "site-status-result", {
+      successMessage: `站点 ${siteName} 已删除`,
+      refreshAfter: true,
+    });
+    closeSiteDetailDrawer();
+    return;
+  }
+
+  const renewButton = event.target.closest("[data-renew-site-certificate]");
+  if (renewButton) {
+    closeSiteActionFloatingMenu();
+    closeActionMenu(renewButton);
+    await submitAction(
+      `/api/admin/sites/${renewButton.dataset.renewSiteCertificate}/renew-certificate`,
+      "POST",
+      null,
+      "site-status-result",
+      {
+        successMessage: "续签订单已创建",
+        refreshAfter: true,
+      },
+    );
+    activateView("certificates", "certificates-orders");
+    return;
+  }
+
+  const switchButton = event.target.closest("[data-switch-site-primary]");
+  if (switchButton) {
+    closeSiteActionFloatingMenu();
+    closeActionMenu(switchButton);
+    await submitAction(
+      `/api/admin/sites/${switchButton.dataset.switchSitePrimary}/switch-primary`,
+      "POST",
+      {},
+      "site-status-result",
+      {
+        successMessage: "主节点切换发布已创建",
+        refreshAfter: true,
+      },
+    );
+    activateView("releases", "releases-records");
   }
 }
 

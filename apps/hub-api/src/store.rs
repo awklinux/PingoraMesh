@@ -3,8 +3,8 @@ use chrono::{DateTime, Utc};
 use pingorahub_config_compiler::CompiledConfigBundle;
 use pingorahub_domain::{
     CacheRule, CertificateRef, NodeIdentity, NodeRuntimeState, NodeStatus,
-    Protocol as SiteProtocol, SiteSpec, SiteStatus, Upstream, UpstreamBalanceMethod,
-    UpstreamEndpoint,
+    Protocol as SiteProtocol, RouteMatchType, SiteRoute, SiteSpec, SiteStatus, Upstream,
+    UpstreamBalanceMethod, UpstreamEndpoint,
 };
 use serde_json::{Map, Value, json};
 use sqlx::{PgPool, Row, postgres::PgPoolOptions};
@@ -74,6 +74,8 @@ pub struct SiteRecord {
 
 impl SiteRecord {
     pub fn to_spec(&self) -> SiteSpec {
+        let upstreams = parse_upstreams(&self.config);
+        let routes = parse_routes(&self.config, &upstreams);
         SiteSpec {
             id: self.id,
             site_code: self.site_code.clone(),
@@ -83,7 +85,8 @@ impl SiteRecord {
             protocol: self.protocol,
             tls_enabled: self.tls_enabled,
             status: self.status,
-            upstreams: parse_upstreams(&self.config),
+            upstreams,
+            routes,
             cache_rules: parse_cache_rules(&self.config),
         }
     }
@@ -2813,6 +2816,93 @@ fn parse_upstreams(config: &Value) -> Vec<Upstream> {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()
+}
+
+fn parse_routes(config: &Value, upstreams: &[Upstream]) -> Vec<SiteRoute> {
+    match config.get("routes") {
+        Some(Value::Array(routes)) => sort_site_routes(
+            routes
+                .iter()
+                .filter_map(parse_route_value)
+                .collect::<Vec<_>>(),
+        ),
+        Some(_) => Vec::new(),
+        None => default_site_routes(upstreams),
+    }
+}
+
+fn default_site_routes(upstreams: &[Upstream]) -> Vec<SiteRoute> {
+    upstreams
+        .first()
+        .map(|upstream| {
+            vec![SiteRoute {
+                name: "default".to_string(),
+                enabled: true,
+                match_type: RouteMatchType::PathPrefix,
+                path: "/".to_string(),
+                upstream: upstream.name.clone(),
+                priority: 1000,
+                strip_prefix: false,
+            }]
+        })
+        .unwrap_or_default()
+}
+
+fn parse_route_value(route: &Value) -> Option<SiteRoute> {
+    let map = route.as_object()?;
+    let name = map.get("name")?.as_str()?.trim().to_string();
+    let path = map.get("path")?.as_str()?.trim().to_string();
+    let upstream = map.get("upstream")?.as_str()?.trim().to_string();
+    if name.is_empty() || path.is_empty() || upstream.is_empty() {
+        return None;
+    }
+    Some(SiteRoute {
+        name,
+        enabled: map.get("enabled").and_then(Value::as_bool).unwrap_or(true),
+        match_type: map
+            .get("match_type")
+            .and_then(Value::as_str)
+            .map(parse_route_match_type)
+            .unwrap_or(RouteMatchType::PathPrefix),
+        path,
+        upstream,
+        priority: map
+            .get("priority")
+            .and_then(Value::as_i64)
+            .and_then(|value| i32::try_from(value).ok())
+            .unwrap_or(100),
+        strip_prefix: map
+            .get("strip_prefix")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+    })
+}
+
+fn parse_route_match_type(raw: &str) -> RouteMatchType {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "path_exact" | "exact" | "=" => RouteMatchType::PathExact,
+        _ => RouteMatchType::PathPrefix,
+    }
+}
+
+fn sort_site_routes(mut routes: Vec<SiteRoute>) -> Vec<SiteRoute> {
+    routes.sort_by(|left, right| {
+        left.priority
+            .cmp(&right.priority)
+            .then_with(|| right.path.len().cmp(&left.path.len()))
+            .then_with(|| {
+                route_match_rank(left.match_type).cmp(&route_match_rank(right.match_type))
+            })
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    routes
+}
+
+fn route_match_rank(match_type: RouteMatchType) -> u8 {
+    match match_type {
+        RouteMatchType::PathExact => 0,
+        RouteMatchType::PathPrefix => 1,
+    }
 }
 
 fn parse_upstream_balance_method(upstream: &Value) -> UpstreamBalanceMethod {

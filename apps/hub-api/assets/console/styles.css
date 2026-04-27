@@ -869,7 +869,8 @@ body.app-booting .app-shell {
 }
 
 .upstream-groups,
-.upstream-endpoints {
+.upstream-endpoints,
+.route-rules {
   display: grid;
   gap: 12px;
 }
@@ -911,6 +912,17 @@ body.app-booting .app-shell {
   grid-template-columns: minmax(0, 1.8fr) 120px 110px 110px 86px 92px;
   gap: 10px;
   align-items: end;
+}
+
+.route-rule-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) 140px minmax(120px, 1fr) minmax(140px, 1fr) 96px 92px 92px 86px 92px;
+  gap: 10px;
+  align-items: end;
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(240, 249, 248, 0.86), rgba(248, 251, 255, 0.78));
+  border: 1px solid rgba(15, 118, 110, 0.12);
 }
 
 .endpoint-sort-actions {
@@ -1730,7 +1742,8 @@ body.drawer-open .drawer-overlay {
 
   .upstream-group-header,
   .upstream-composer,
-  .upstream-endpoint-row {
+  .upstream-endpoint-row,
+  .route-rule-row {
     grid-template-columns: 1fr;
   }
 

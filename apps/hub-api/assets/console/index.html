@@ -939,6 +939,21 @@
                 <div class="full-span form-block">
                   <div class="card-header compact-header">
                     <div>
+                      <p class="eyebrow">转发规则</p>
+                      <h3>Location 路由</h3>
+                    </div>
+                    <button id="add-route-rule" class="ghost-button" type="button">
+                      添加规则
+                    </button>
+                  </div>
+                  <div id="route-rules" class="route-rules"></div>
+                  <p class="form-hint">
+                    按优先级匹配请求路径并转发到指定 Upstream，例如 `/api` 转发到 api 服务，`/` 作为默认兜底路由。
+                  </p>
+                </div>
+                <div class="full-span form-block">
+                  <div class="card-header compact-header">
+                    <div>
                       <p class="eyebrow">缓存策略</p>
                       <h3>静态资源缓存</h3>
                     </div>

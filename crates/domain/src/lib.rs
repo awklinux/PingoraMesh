@@ -7,5 +7,6 @@ pub use certificate::CertificateRef;
 pub use node::{NodeIdentity, NodeRuntimeState, NodeStatus};
 pub use release::{ReleaseManifest, ReleaseTarget};
 pub use site::{
-    CacheRule, Protocol, SiteSpec, SiteStatus, Upstream, UpstreamBalanceMethod, UpstreamEndpoint,
+    CacheRule, Protocol, RouteMatchType, SiteRoute, SiteSpec, SiteStatus, Upstream,
+    UpstreamBalanceMethod, UpstreamEndpoint,
 };

@@ -74,6 +74,27 @@ const UPSTREAM_BALANCE_METHODS = Object.freeze([
   },
 ]);
 
+const ROUTE_MATCH_TYPES = Object.freeze([
+  {
+    value: "path_prefix",
+    label: "前缀匹配",
+  },
+  {
+    value: "path_exact",
+    label: "精确匹配",
+  },
+]);
+
+const DEFAULT_ROUTE_TEMPLATE = Object.freeze({
+  name: "default",
+  enabled: true,
+  match_type: "path_prefix",
+  path: "/",
+  upstream: "",
+  priority: 1000,
+  strip_prefix: false,
+});
+
 const navigationConfig = {
   dashboard: {
     label: "概览",
@@ -578,11 +599,26 @@ function bindForms() {
       name: composerName || DEFAULT_UPSTREAM_TEMPLATE.name,
       endpoints: DEFAULT_UPSTREAM_TEMPLATE.endpoints.map((endpoint) => ({ ...endpoint })),
     });
+    syncRouteUpstreamOptions();
     syncSiteConfigPreview();
   });
   $("upstream-groups").addEventListener("click", handleUpstreamGroupClick);
-  $("upstream-groups").addEventListener("input", syncSiteConfigPreview);
-  $("upstream-groups").addEventListener("change", syncSiteConfigPreview);
+  $("upstream-groups").addEventListener("input", () => {
+    syncRouteUpstreamOptions();
+    syncSiteConfigPreview();
+  });
+  $("upstream-groups").addEventListener("change", () => {
+    syncRouteUpstreamOptions();
+    syncSiteConfigPreview();
+  });
+  $("add-route-rule").addEventListener("click", () => {
+    addRouteRuleRow(nextRouteRuleTemplate());
+    syncRouteUpstreamOptions();
+    syncSiteConfigPreview();
+  });
+  $("route-rules").addEventListener("click", handleRouteRuleClick);
+  $("route-rules").addEventListener("input", syncSiteConfigPreview);
+  $("route-rules").addEventListener("change", syncSiteConfigPreview);
   for (const rule of MANAGED_CACHE_RULES) {
     $("site-form")[rule.enabledField].addEventListener("change", syncSiteConfigPreview);
     $("site-form")[rule.extensionsField].addEventListener("change", syncSiteConfigPreview);
@@ -2735,6 +2771,7 @@ async function loadSiteIntoForm(siteId, options = {}) {
     form.protocol.value = site.protocol;
     form.tls_enabled.checked = site.tls_enabled;
     applyManagedUpstreamsToForm(form, site.config || {});
+    applyManagedRoutesToForm(form, site.config || {});
     applyManagedCacheRulesToForm(form, site.config || {});
     form.config.value = formatJson(mergeManagedSiteConfig(site.config || {}, form));
 
@@ -2768,6 +2805,7 @@ function resetSiteForm() {
   form.listen_port.value = 443;
   form.tls_enabled.checked = true;
   applyManagedUpstreamDefaults(form);
+  applyManagedRouteDefaults(form);
   applyManagedCacheDefaults(form);
   form.config.value = formatJson(defaultSiteConfigObject());
   $("upstream-new-name").value = "";
@@ -3312,6 +3350,12 @@ function mergeManagedSiteConfig(baseConfig, form) {
   const config = { ...baseConfig };
   const upstreams = collectManagedUpstreams(form);
   config.upstreams = upstreams;
+  const routes = collectManagedRoutes(form, upstreams);
+  if (routes.length > 0) {
+    config.routes = routes;
+  } else {
+    delete config.routes;
+  }
 
   const existingRules = Array.isArray(baseConfig?.cache_rules) ? baseConfig.cache_rules : [];
   const customRules = existingRules.filter(
@@ -3382,6 +3426,53 @@ function applyManagedUpstreamsToForm(form, config) {
 function applyManagedUpstreamDefaults(form) {
   applyManagedUpstreamsToForm(form, {
     upstreams: [],
+  });
+}
+
+function collectManagedRoutes(form, upstreams = collectManagedUpstreams(form)) {
+  const upstreamNames = new Set(upstreams.map((upstream) => upstream.name));
+  return [...form.querySelectorAll(".route-rule-row")]
+    .map((row, index) => {
+      const name = row.querySelector('[data-route-field="name"]').value.trim();
+      const path = normalizeRoutePath(row.querySelector('[data-route-field="path"]').value);
+      const upstream = row.querySelector('[data-route-field="upstream"]').value.trim();
+      const priorityValue = Number(row.querySelector('[data-route-field="priority"]').value || 0);
+      if (!name || !path || !upstream || !upstreamNames.has(upstream)) {
+        return null;
+      }
+      return {
+        name,
+        enabled: row.querySelector('[data-route-field="enabled"]').checked,
+        match_type: normalizeRouteMatchType(
+          row.querySelector('[data-route-field="match_type"]').value,
+        ),
+        path,
+        upstream,
+        priority: Number.isFinite(priorityValue) ? Math.round(priorityValue) : (index + 1) * 10,
+        strip_prefix: row.querySelector('[data-route-field="strip_prefix"]').checked,
+      };
+    })
+    .filter(Boolean);
+}
+
+function applyManagedRoutesToForm(form, config) {
+  const routeRules = $("route-rules");
+  routeRules.innerHTML = "";
+  const upstreams = Array.isArray(config?.upstreams) ? config.upstreams : [];
+  const routes = normalizeRouteList(config?.routes);
+  if (routes.length === 0) {
+    addRouteRuleRow(defaultRouteForUpstreams(upstreams));
+    syncRouteUpstreamOptions();
+    return;
+  }
+  routes.forEach((route) => addRouteRuleRow(route));
+  syncRouteUpstreamOptions();
+}
+
+function applyManagedRouteDefaults(form) {
+  applyManagedRoutesToForm(form, {
+    upstreams: [],
+    routes: [],
   });
 }
 
@@ -3524,6 +3615,151 @@ function syncEndpointSortButtons(group) {
   });
 }
 
+function addRouteRuleRow(initial = DEFAULT_ROUTE_TEMPLATE) {
+  const row = document.createElement("div");
+  row.className = "route-rule-row";
+  row.innerHTML = `
+    <label>
+      <span>规则名称</span>
+      <input data-route-field="name" placeholder="api-route" />
+    </label>
+    <label>
+      <span>匹配方式</span>
+      <select data-route-field="match_type">
+        ${ROUTE_MATCH_TYPES.map(
+          (type) => `<option value="${escapeHtml(type.value)}">${escapeHtml(type.label)}</option>`,
+        ).join("")}
+      </select>
+    </label>
+    <label>
+      <span>路径</span>
+      <input data-route-field="path" placeholder="/api" />
+    </label>
+    <label>
+      <span>目标 Upstream</span>
+      <select data-route-field="upstream"></select>
+    </label>
+    <label>
+      <span>优先级</span>
+      <input data-route-field="priority" type="number" step="1" value="100" />
+    </label>
+    <label class="checkbox-field toggle-field">
+      <input data-route-field="enabled" type="checkbox" checked />
+      <span>启用</span>
+    </label>
+    <label class="checkbox-field toggle-field">
+      <input data-route-field="strip_prefix" type="checkbox" />
+      <span>Strip</span>
+    </label>
+    <div class="endpoint-sort-actions" aria-label="规则排序">
+      <button class="tiny-button" type="button" data-move-route="up" title="上移">↑</button>
+      <button class="tiny-button" type="button" data-move-route="down" title="下移">↓</button>
+    </div>
+    <button class="ghost-button route-remove-button" type="button" data-remove-route>
+      移除
+    </button>
+  `;
+  $("route-rules").appendChild(row);
+  row.querySelector('[data-route-field="name"]').value = initial.name || "";
+  row.querySelector('[data-route-field="match_type"]').value = normalizeRouteMatchType(
+    initial.match_type,
+  );
+  row.querySelector('[data-route-field="path"]').value = initial.path || "/";
+  row.querySelector('[data-route-field="upstream"]').dataset.selected = initial.upstream || "";
+  row.querySelector('[data-route-field="priority"]').value = initial.priority ?? 100;
+  row.querySelector('[data-route-field="enabled"]').checked = initial.enabled !== false;
+  row.querySelector('[data-route-field="strip_prefix"]').checked = initial.strip_prefix === true;
+  syncRouteSortButtons();
+}
+
+function handleRouteRuleClick(event) {
+  const moveRouteButton = event.target.closest("[data-move-route]");
+  if (moveRouteButton) {
+    const row = moveRouteButton.closest(".route-rule-row");
+    const direction = moveRouteButton.dataset.moveRoute;
+    if (direction === "up" && row?.previousElementSibling) {
+      row.parentElement.insertBefore(row, row.previousElementSibling);
+    }
+    if (direction === "down" && row?.nextElementSibling) {
+      row.parentElement.insertBefore(row.nextElementSibling, row);
+    }
+    renumberRoutePriorities();
+    syncRouteSortButtons();
+    syncSiteConfigPreview();
+    return;
+  }
+
+  const removeRouteButton = event.target.closest("[data-remove-route]");
+  if (removeRouteButton) {
+    const rows = $("route-rules").querySelectorAll(".route-rule-row");
+    if (rows.length <= 1) {
+      rows[0]?.querySelector('[data-route-field="path"]').focus();
+      return;
+    }
+    removeRouteButton.closest(".route-rule-row")?.remove();
+    syncRouteSortButtons();
+    syncSiteConfigPreview();
+  }
+}
+
+function syncRouteUpstreamOptions() {
+  const upstreamNames = collectUpstreamNamesFromForm();
+  for (const select of document.querySelectorAll('[data-route-field="upstream"]')) {
+    const previousValue = select.value || select.dataset.selected || "";
+    if (upstreamNames.length === 0) {
+      select.innerHTML = '<option value="">请先配置 Upstream</option>';
+      select.value = "";
+      select.dataset.selected = "";
+      continue;
+    }
+    select.innerHTML = upstreamNames
+      .map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+      .join("");
+    select.value = upstreamNames.includes(previousValue) ? previousValue : upstreamNames[0];
+    select.dataset.selected = select.value;
+  }
+}
+
+function collectUpstreamNamesFromForm() {
+  return [...document.querySelectorAll(".upstream-group")]
+    .map((group) => group.querySelector('[data-upstream-field="name"]')?.value.trim())
+    .filter(Boolean);
+}
+
+function syncRouteSortButtons() {
+  const rows = [...$("route-rules").querySelectorAll(".route-rule-row")];
+  rows.forEach((row, index) => {
+    const upButton = row.querySelector('[data-move-route="up"]');
+    const downButton = row.querySelector('[data-move-route="down"]');
+    if (upButton) {
+      upButton.disabled = index === 0;
+    }
+    if (downButton) {
+      downButton.disabled = index === rows.length - 1;
+    }
+  });
+}
+
+function renumberRoutePriorities() {
+  [...$("route-rules").querySelectorAll(".route-rule-row")].forEach((row, index) => {
+    row.querySelector('[data-route-field="priority"]').value = String((index + 1) * 10);
+  });
+}
+
+function nextRouteRuleTemplate() {
+  const upstream = collectUpstreamNamesFromForm()[0] || "";
+  const index = $("route-rules").querySelectorAll(".route-rule-row").length + 1;
+  return {
+    name: `route-${index}`,
+    enabled: true,
+    match_type: "path_prefix",
+    path: index === 1 ? "/" : `/path-${index}`,
+    upstream,
+    priority: index === 1 ? 1000 : index * 10,
+    strip_prefix: false,
+  };
+}
+
 function normalizeEndpointList(endpoints) {
   return (Array.isArray(endpoints) ? endpoints : [])
     .map((endpoint) => {
@@ -3541,6 +3777,55 @@ function normalizeEndpointList(endpoints) {
       };
     })
     .filter((endpoint) => endpoint && endpoint.address);
+}
+
+function normalizeRouteList(routes) {
+  return (Array.isArray(routes) ? routes : [])
+    .map((route) => {
+      if (!route || typeof route !== "object") {
+        return null;
+      }
+      return {
+        name: String(route.name || "").trim(),
+        enabled: route.enabled !== false,
+        match_type: normalizeRouteMatchType(route.match_type),
+        path: normalizeRoutePath(route.path || "/"),
+        upstream: String(route.upstream || "").trim(),
+        priority: Number(route.priority ?? 100),
+        strip_prefix: route.strip_prefix === true,
+      };
+    })
+    .filter((route) => route && route.name && route.path);
+}
+
+function defaultRouteForUpstreams(upstreams) {
+  const upstream = (Array.isArray(upstreams) ? upstreams : [])
+    .map((item) => String(item?.name || "").trim())
+    .find(Boolean);
+  return {
+    ...DEFAULT_ROUTE_TEMPLATE,
+    upstream: upstream || DEFAULT_ROUTE_TEMPLATE.upstream,
+  };
+}
+
+function normalizeRoutePath(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function normalizeRouteMatchType(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  const aliases = {
+    prefix: "path_prefix",
+    path: "path_prefix",
+    exact: "path_exact",
+    "=": "path_exact",
+  };
+  const resolved = aliases[normalized] || normalized;
+  return ROUTE_MATCH_TYPES.some((type) => type.value === resolved) ? resolved : "path_prefix";
 }
 
 function normalizeUpstreamBalanceMethod(value) {
@@ -3612,6 +3897,7 @@ function applyManagedCacheDefaults(form) {
 function defaultSiteConfigObject() {
   return {
     upstreams: [],
+    routes: [],
     cache_rules: MANAGED_CACHE_RULES.map((rule) => ({
       name: rule.ruleName,
       match_extensions: normalizeExtensionList(rule.defaultExtensions),

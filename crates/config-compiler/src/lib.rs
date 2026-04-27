@@ -31,6 +31,7 @@ pub fn compile_site_bundle(
         "protocol": site.protocol,
         "tls_enabled": site.tls_enabled,
         "upstreams": site.upstreams,
+        "routes": site.routes,
         "cache_rules": site.cache_rules,
     });
 
@@ -98,4 +99,77 @@ pub fn compile_site_cleanup_bundle(
 
 fn signature_for_release(release_version: &str, release_id: Uuid) -> String {
     format!("sig:{release_version}:{release_id}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pingorahub_domain::{
+        Protocol, RouteMatchType, SiteRoute, SiteStatus, Upstream, UpstreamBalanceMethod,
+        UpstreamEndpoint,
+    };
+
+    #[test]
+    fn compile_site_bundle_includes_routes() {
+        let site = SiteSpec {
+            id: Uuid::new_v4(),
+            site_code: "route-demo".to_string(),
+            name: "Route Demo".to_string(),
+            domain: "route.example.com".to_string(),
+            listen_port: 80,
+            protocol: Protocol::Http,
+            tls_enabled: false,
+            status: SiteStatus::Published,
+            upstreams: vec![
+                Upstream {
+                    name: "web".to_string(),
+                    balance_method: UpstreamBalanceMethod::RoundRobin,
+                    endpoints: vec![UpstreamEndpoint {
+                        address: "10.20.3.65:8088".to_string(),
+                        weight: 100,
+                        active: true,
+                        backup: false,
+                    }],
+                },
+                Upstream {
+                    name: "api".to_string(),
+                    balance_method: UpstreamBalanceMethod::WeightedRoundRobin,
+                    endpoints: vec![UpstreamEndpoint {
+                        address: "10.20.3.68:9000".to_string(),
+                        weight: 100,
+                        active: true,
+                        backup: false,
+                    }],
+                },
+            ],
+            routes: vec![
+                SiteRoute {
+                    name: "api-route".to_string(),
+                    enabled: true,
+                    match_type: RouteMatchType::PathPrefix,
+                    path: "/api".to_string(),
+                    upstream: "api".to_string(),
+                    priority: 10,
+                    strip_prefix: false,
+                },
+                SiteRoute {
+                    name: "default".to_string(),
+                    enabled: true,
+                    match_type: RouteMatchType::PathPrefix,
+                    path: "/".to_string(),
+                    upstream: "web".to_string(),
+                    priority: 1000,
+                    strip_prefix: false,
+                },
+            ],
+            cache_rules: Vec::new(),
+        };
+
+        let bundle = compile_site_bundle(site, Vec::new(), Vec::new(), "rel-route-001".to_string())
+            .expect("site bundle should compile");
+
+        assert_eq!(bundle.rendered_config["routes"][0]["upstream"], "api");
+        assert_eq!(bundle.rendered_config["routes"][1]["path"], "/");
+        assert_eq!(bundle.manifest.sites[0].routes[0].path, "/api");
+    }
 }

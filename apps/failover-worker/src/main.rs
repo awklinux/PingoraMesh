@@ -4,8 +4,8 @@ use pingorahub_application::ReleasePlanner;
 use pingorahub_config_compiler::compile_site_bundle;
 use pingorahub_dns_provider::{DnsRecordChange, ProviderConfig, build_provider};
 use pingorahub_domain::{
-    CacheRule, CertificateRef, Protocol as SiteProtocol, ReleaseTarget, SiteSpec, SiteStatus,
-    Upstream, UpstreamBalanceMethod, UpstreamEndpoint,
+    CacheRule, CertificateRef, Protocol as SiteProtocol, ReleaseTarget, RouteMatchType, SiteRoute,
+    SiteSpec, SiteStatus, Upstream, UpstreamBalanceMethod, UpstreamEndpoint,
 };
 use serde_json::{Map, Value, json};
 use sqlx::{PgPool, Postgres, Row, Transaction, postgres::PgPoolOptions};
@@ -441,6 +441,8 @@ async fn execute_site_failover(
             preheated: binding.binding_role == "standby",
         })
         .collect::<Vec<_>>();
+    let upstreams = parse_upstreams(&site.config);
+    let routes = parse_routes(&site.config, &upstreams);
     let bundle = compile_site_bundle(
         SiteSpec {
             id: site.site_id,
@@ -451,7 +453,8 @@ async fn execute_site_failover(
             protocol: site.protocol,
             tls_enabled: site.tls_enabled,
             status: site.status,
-            upstreams: parse_upstreams(&site.config),
+            upstreams,
+            routes,
             cache_rules: parse_cache_rules(&site.config),
         },
         certificates,
@@ -1458,6 +1461,93 @@ fn parse_upstreams(config: &Value) -> Vec<Upstream> {
         .unwrap_or_default()
 }
 
+fn parse_routes(config: &Value, upstreams: &[Upstream]) -> Vec<SiteRoute> {
+    match config.get("routes") {
+        Some(Value::Array(routes)) => sort_site_routes(
+            routes
+                .iter()
+                .filter_map(parse_route_value)
+                .collect::<Vec<_>>(),
+        ),
+        Some(_) => Vec::new(),
+        None => default_site_routes(upstreams),
+    }
+}
+
+fn default_site_routes(upstreams: &[Upstream]) -> Vec<SiteRoute> {
+    upstreams
+        .first()
+        .map(|upstream| {
+            vec![SiteRoute {
+                name: "default".to_string(),
+                enabled: true,
+                match_type: RouteMatchType::PathPrefix,
+                path: "/".to_string(),
+                upstream: upstream.name.clone(),
+                priority: 1000,
+                strip_prefix: false,
+            }]
+        })
+        .unwrap_or_default()
+}
+
+fn parse_route_value(route: &Value) -> Option<SiteRoute> {
+    let map = route.as_object()?;
+    let name = map.get("name")?.as_str()?.trim().to_string();
+    let path = map.get("path")?.as_str()?.trim().to_string();
+    let upstream = map.get("upstream")?.as_str()?.trim().to_string();
+    if name.is_empty() || path.is_empty() || upstream.is_empty() {
+        return None;
+    }
+    Some(SiteRoute {
+        name,
+        enabled: map.get("enabled").and_then(Value::as_bool).unwrap_or(true),
+        match_type: map
+            .get("match_type")
+            .and_then(Value::as_str)
+            .map(parse_route_match_type)
+            .unwrap_or(RouteMatchType::PathPrefix),
+        path,
+        upstream,
+        priority: map
+            .get("priority")
+            .and_then(Value::as_i64)
+            .and_then(|value| i32::try_from(value).ok())
+            .unwrap_or(100),
+        strip_prefix: map
+            .get("strip_prefix")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+    })
+}
+
+fn parse_route_match_type(raw: &str) -> RouteMatchType {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "path_exact" | "exact" | "=" => RouteMatchType::PathExact,
+        _ => RouteMatchType::PathPrefix,
+    }
+}
+
+fn sort_site_routes(mut routes: Vec<SiteRoute>) -> Vec<SiteRoute> {
+    routes.sort_by(|left, right| {
+        left.priority
+            .cmp(&right.priority)
+            .then_with(|| right.path.len().cmp(&left.path.len()))
+            .then_with(|| {
+                route_match_rank(left.match_type).cmp(&route_match_rank(right.match_type))
+            })
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    routes
+}
+
+fn route_match_rank(match_type: RouteMatchType) -> u8 {
+    match match_type {
+        RouteMatchType::PathExact => 0,
+        RouteMatchType::PathPrefix => 1,
+    }
+}
+
 fn parse_upstream_balance_method(upstream: &Value) -> UpstreamBalanceMethod {
     upstream
         .get("balance_method")
@@ -1754,6 +1844,63 @@ mod tests {
             select_next_policy_standby(&bindings, new_primary_node_id),
             Some(offline_old_primary_node_id)
         );
+    }
+
+    #[test]
+    fn parse_routes_preserves_configured_routes() {
+        let upstreams = vec![
+            Upstream {
+                name: "web".to_string(),
+                balance_method: UpstreamBalanceMethod::RoundRobin,
+                endpoints: vec![],
+            },
+            Upstream {
+                name: "api".to_string(),
+                balance_method: UpstreamBalanceMethod::RoundRobin,
+                endpoints: vec![],
+            },
+        ];
+        let routes = parse_routes(
+            &json!({
+                "routes": [
+                    {
+                        "name": "default",
+                        "enabled": true,
+                        "match_type": "path_prefix",
+                        "path": "/",
+                        "upstream": "web",
+                        "priority": 1000
+                    },
+                    {
+                        "name": "api-route",
+                        "enabled": true,
+                        "match_type": "path_prefix",
+                        "path": "/api",
+                        "upstream": "api",
+                        "priority": 10
+                    }
+                ]
+            }),
+            &upstreams,
+        );
+
+        assert_eq!(routes[0].upstream, "api");
+        assert_eq!(routes[1].path, "/");
+    }
+
+    #[test]
+    fn parse_routes_generates_legacy_default_route() {
+        let upstreams = vec![Upstream {
+            name: "legacy-origin".to_string(),
+            balance_method: UpstreamBalanceMethod::RoundRobin,
+            endpoints: vec![],
+        }];
+
+        let routes = parse_routes(&json!({}), &upstreams);
+
+        assert_eq!(routes.len(), 1);
+        assert_eq!(routes[0].path, "/");
+        assert_eq!(routes[0].upstream, "legacy-origin");
     }
 
     #[test]

@@ -1294,6 +1294,18 @@ mod tests {
             "10.0.2.11:8443"
         );
         assert_eq!(
+            package_body["data"]["rendered_config"]["routes"][0]["path"]
+                .as_str()
+                .unwrap(),
+            "/"
+        );
+        assert_eq!(
+            package_body["data"]["rendered_config"]["routes"][0]["upstream"]
+                .as_str()
+                .unwrap(),
+            "portal-origin"
+        );
+        assert_eq!(
             package_body["data"]["manifest"]["sites"][0]["cache_rules"][0]["expires_seconds"]
                 .as_u64()
                 .unwrap(),
@@ -1347,6 +1359,237 @@ mod tests {
                 .unwrap(),
             release_version
         );
+    }
+
+    #[tokio::test]
+    async fn site_routes_are_published_in_config_package() {
+        let app = build_test_app().await;
+        let cookie = admin_session_cookie(&app).await;
+
+        let create_node = app
+            .clone()
+            .oneshot(cookie_json_request(
+                "POST",
+                "/api/admin/nodes",
+                &cookie,
+                json!({
+                    "node_code": "route-node",
+                    "name": "Route Node",
+                    "region": "cn-east",
+                    "idc": "lab",
+                    "labels": { "role": "edge" }
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(create_node.status(), StatusCode::OK);
+        let create_node_body = response_json(create_node).await;
+        let node_id = create_node_body["data"]["node_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let bootstrap_token = create_node_body["data"]["bootstrap_token"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let register = app
+            .clone()
+            .oneshot(json_request(
+                "POST",
+                "/api/node/register",
+                json!({
+                    "node_code": "route-node",
+                    "bootstrap_token": bootstrap_token,
+                    "hostname": "route-node.local",
+                    "private_ip": "10.0.3.10",
+                    "public_ip": "203.0.113.10",
+                    "agent_version": "0.1.0"
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(register.status(), StatusCode::OK);
+        let register_body = response_json(register).await;
+        let access_token = register_body["data"]["access_token"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let create_site = app
+            .clone()
+            .oneshot(cookie_json_request(
+                "POST",
+                "/api/admin/sites",
+                &cookie,
+                json!({
+                    "site_code": "route-demo",
+                    "name": "route-demo",
+                    "domain": "route.example.com",
+                    "listen_port": 80,
+                    "protocol": "http",
+                    "tls_enabled": false,
+                    "config": {
+                        "upstreams": [
+                            {
+                                "name": "web",
+                                "endpoints": ["10.0.3.10:8080"]
+                            },
+                            {
+                                "name": "api",
+                                "balance_method": "weighted_round_robin",
+                                "endpoints": [
+                                    {"address": "10.0.3.11:9000", "weight": 100, "active": true}
+                                ]
+                            }
+                        ],
+                        "routes": [
+                            {
+                                "name": "api-route",
+                                "enabled": true,
+                                "match_type": "path_prefix",
+                                "path": "/api",
+                                "upstream": "api",
+                                "priority": 10,
+                                "strip_prefix": false
+                            },
+                            {
+                                "name": "default",
+                                "enabled": true,
+                                "match_type": "path_prefix",
+                                "path": "/",
+                                "upstream": "web",
+                                "priority": 1000,
+                                "strip_prefix": false
+                            }
+                        ]
+                    }
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(create_site.status(), StatusCode::OK);
+        let create_site_body = response_json(create_site).await;
+        let site_id = create_site_body["data"]["site_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let bind = app
+            .clone()
+            .oneshot(cookie_json_request(
+                "POST",
+                &format!("/api/admin/sites/{site_id}/bindings"),
+                &cookie,
+                json!({
+                    "bindings": [
+                        {
+                            "node_id": node_id,
+                            "binding_role": "primary",
+                            "priority": 10
+                        }
+                    ]
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(bind.status(), StatusCode::OK);
+
+        let release = app
+            .clone()
+            .oneshot(cookie_json_request(
+                "POST",
+                "/api/admin/releases",
+                &cookie,
+                json!({
+                    "scope_type": "site",
+                    "scope_id": site_id,
+                    "release_type": "publish",
+                    "reason": "publish route demo"
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(release.status(), StatusCode::OK);
+        let release_body = response_json(release).await;
+        let release_version = release_body["data"]["release_version"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let package = app
+            .clone()
+            .oneshot(auth_empty_request(
+                "GET",
+                &format!("/api/node/config/package/{release_version}?node_id={node_id}"),
+                &access_token,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(package.status(), StatusCode::OK);
+        let package_body = response_json(package).await;
+        assert_eq!(
+            package_body["data"]["rendered_config"]["routes"][0]["upstream"],
+            "api"
+        );
+        assert_eq!(
+            package_body["data"]["rendered_config"]["routes"][1]["path"],
+            "/"
+        );
+    }
+
+    #[tokio::test]
+    async fn create_site_rejects_route_with_unknown_upstream() {
+        let app = build_test_app().await;
+        let cookie = admin_session_cookie(&app).await;
+
+        let create_site = app
+            .clone()
+            .oneshot(cookie_json_request(
+                "POST",
+                "/api/admin/sites",
+                &cookie,
+                json!({
+                    "site_code": "route-invalid",
+                    "name": "route-invalid",
+                    "domain": "route-invalid.example.com",
+                    "listen_port": 80,
+                    "protocol": "http",
+                    "tls_enabled": false,
+                    "config": {
+                        "upstreams": [
+                            {
+                                "name": "web",
+                                "endpoints": ["10.0.3.10:8080"]
+                            }
+                        ],
+                        "routes": [
+                            {
+                                "name": "api-route",
+                                "enabled": true,
+                                "match_type": "path_prefix",
+                                "path": "/api",
+                                "upstream": "api",
+                                "priority": 10,
+                                "strip_prefix": false
+                            },
+                            {
+                                "name": "default",
+                                "enabled": true,
+                                "match_type": "path_prefix",
+                                "path": "/",
+                                "upstream": "web",
+                                "priority": 1000,
+                                "strip_prefix": false
+                            }
+                        ]
+                    }
+                }),
+            ))
+            .await
+            .unwrap();
+
+        assert_eq!(create_site.status(), StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]

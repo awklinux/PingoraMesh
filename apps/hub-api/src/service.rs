@@ -881,6 +881,7 @@ impl HubService {
         if request.domain.trim().is_empty() {
             return Err(AppError::bad_request("domain is required"));
         }
+        validate_site_config(&request.config)?;
 
         let protocol = parse_protocol(&request.protocol)?;
         let site_code = generate_unique_site_code(
@@ -921,6 +922,7 @@ impl HubService {
         request: UpdateSiteRequest,
     ) -> Result<CreateSiteResponse, AppError> {
         let protocol = parse_protocol(&request.protocol)?;
+        validate_site_config(&request.config)?;
         let mut site = self
             .repo
             .site(site_id)
@@ -1449,6 +1451,7 @@ impl HubService {
         release_type: String,
         reason: String,
     ) -> Result<SavedRelease, AppError> {
+        validate_site_config(&site.config)?;
         let serial = self.release_counter.fetch_add(1, Ordering::Relaxed);
         let release_version = ReleasePlanner::build_release_version("site", Utc::now(), serial);
         let target_node_ids = site
@@ -2516,6 +2519,101 @@ fn primary_site_binding(site: &SiteRecord) -> Option<&SiteBindingRecord> {
         .iter()
         .find(|binding| binding.binding_role == "primary")
         .or_else(|| site.bindings.first())
+}
+
+fn validate_site_config(config: &Value) -> Result<(), AppError> {
+    let upstream_names = config
+        .get("upstreams")
+        .and_then(Value::as_array)
+        .map(|upstreams| {
+            upstreams
+                .iter()
+                .filter_map(|upstream| upstream.get("name").and_then(Value::as_str))
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .map(str::to_string)
+                .collect::<HashSet<_>>()
+        })
+        .unwrap_or_default();
+
+    let Some(routes_value) = config.get("routes") else {
+        return Ok(());
+    };
+    let routes = routes_value
+        .as_array()
+        .ok_or_else(|| AppError::bad_request("routes must be an array"))?;
+
+    if routes.is_empty() && !upstream_names.is_empty() {
+        return Err(AppError::bad_request(
+            "routes must include a default / route when upstreams are configured",
+        ));
+    }
+
+    let mut active_keys = HashSet::new();
+    let mut has_default_route = false;
+    for route in routes {
+        let route = route
+            .as_object()
+            .ok_or_else(|| AppError::bad_request("route must be an object"))?;
+        let name = required_route_string(route, "name")?;
+        let path = required_route_string(route, "path")?;
+        let upstream = required_route_string(route, "upstream")?;
+        let match_type = required_route_string(route, "match_type")?;
+        let priority = route
+            .get("priority")
+            .and_then(Value::as_i64)
+            .and_then(|value| i32::try_from(value).ok())
+            .unwrap_or(100);
+        let enabled = route
+            .get("enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
+
+        if name.is_empty() {
+            return Err(AppError::bad_request("route name is required"));
+        }
+        if !path.starts_with('/') {
+            return Err(AppError::bad_request("route path must start with /"));
+        }
+        if !matches!(match_type.as_str(), "path_prefix" | "path_exact") {
+            return Err(AppError::bad_request(
+                "route match_type must be path_prefix or path_exact",
+            ));
+        }
+        if !upstream_names.contains(&upstream) {
+            return Err(AppError::bad_request(format!(
+                "route upstream {upstream} does not exist"
+            )));
+        }
+        if enabled {
+            if path == "/" {
+                has_default_route = true;
+            }
+            let key = (match_type, path, priority);
+            if !active_keys.insert(key) {
+                return Err(AppError::bad_request(
+                    "duplicate active route match_type, path and priority",
+                ));
+            }
+        }
+    }
+
+    if !upstream_names.is_empty() && !has_default_route {
+        return Err(AppError::bad_request(
+            "routes must include an active default / route",
+        ));
+    }
+
+    Ok(())
+}
+
+fn required_route_string(route: &Map<String, Value>, key: &str) -> Result<String, AppError> {
+    route
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .map(str::to_string)
+        .ok_or_else(|| AppError::bad_request(format!("route {key} is required")))
 }
 
 fn select_next_failover_policy_standby(
